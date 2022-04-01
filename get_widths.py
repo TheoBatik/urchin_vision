@@ -16,6 +16,7 @@ import functions as f
 stack_images = f.stack_images
 empty = f.empty
 midpoint = f.midpoint
+hsv_filter = f.hsv_filter
 
 
 # # construct the argument parse and parse the arguments
@@ -28,18 +29,17 @@ midpoint = f.midpoint
 args = {"image":'images/example2.jpg', "width":0.955}
 pixelsPerMetric = None
 
-# load the image, convert it to grayscale, and blur it slightly
+# load the image and copy it
 img = cv2.imread(args["image"])
 img_result = img.copy()
 
-# n_dil = int(input("Enter number of erosions (input must be an integer): "))
-# n_ero = int(input("Enter number of dilations (input must be an integer): "))
-n_dil = 1
-n_ero = 1
+dilation_iterations = 1
+erosion_iterations = 1
 
-# HSV FILTER:
-
-# Setup HSV filter trackbars
+# HSV FILTER
+# Initialise 'contol panel' for HSV filter, and return HSV-filtered / 'masked' image
+#masked = hsv_filter(img)
+ # Setup HSV filter trackbars
 cv2.namedWindow("TrackBars1")
 cv2.resizeWindow("TrackBars1",640,240)
 cv2.createTrackbar("Hue Min","TrackBars1",0,240, empty)
@@ -49,20 +49,18 @@ cv2.createTrackbar("Sat Max","TrackBars1",239,239,empty)
 cv2.createTrackbar("Val Min","TrackBars1",0,255,empty)
 cv2.createTrackbar("Val Max","TrackBars1",77,255,empty)
 
-# Instructions
-print('Instructions:')
-print('\tPress \'q\' to exit')
-print('\tUse track bars to adjust the HSV filter')
+# Instructions (part 1)
+print('Instructions (part 1):')
+print('\tPress \'n\' to move onto contour detection')
+print('\tUse trackbars to adjust the HSV filter')
 
-# Initialise 'contol panel' for HSV filter
 while True:
     
-    # define key press
+    # define key press as
     k = cv2.waitKey(1)
-    
-    # press 'q' to exit
-    if k & 0xFF == ord('q'):
-        # Save HSV values
+    print(k)
+    # press 'n' to break loop
+    if k & 0xFF == ord('n'):
         break
     
     # convert image to HSV
@@ -82,32 +80,33 @@ while True:
     
     # create and apply bitwise mask
     mask = cv2.inRange(imgHSV,lower,upper)
-    img_col = cv2.bitwise_and(img,img,mask=mask)
+    masked = cv2.bitwise_and(img,img,mask=mask)
     
     # scale and display filtered image
-    img_col_scaled = stack_images(0.2, ([ img_col ] ))
-    cv2.imshow("Filter by HSV", img_col_scaled)
+    masked_scaled = stack_images(0.2, ([ masked ] ))
+    cv2.imshow("Filter by HSV", masked_scaled)
 
 cv2.destroyAllWindows()
 
 # MEASURMENT
+## leverages dilations, erosions, blurs, contour detection and minimum area bounding boxes
 
 # convert to grayscale and blur
 results = []
 kernel_blur = (7, 7)
-gray = cv2.cvtColor(img_col, cv2.COLOR_BGR2GRAY)
+gray = cv2.cvtColor(masked, cv2.COLOR_BGR2GRAY)
 gray = cv2.GaussianBlur(gray, kernel_blur, 0)
 
 # edges only
 edged = cv2.Canny(gray, 50, 100)
 
 # dilate and erode
-kernel_de_dims = 12
-kernel = np.ones((kernel_de_dims,kernel_de_dims),np.uint8)
+kernel_dimension_DE = 12
+kernel = np.ones((kernel_dimension_DE,kernel_dimension_DE),np.uint8)
 dilated = cv2.dilate(edged, kernel, iterations=1)
 eroded = cv2.erode(dilated, kernel, iterations=1)
 
-# Setup measurement trackbars
+# Setup measurement trackbar
 min_area_power_def = 4 # minimum area: default power
 min_area_coeff_def = 5 # minimum area: default coefficient
 min_area_upper_bound = 10 # greatest minimum area selectable
@@ -119,10 +118,11 @@ cv2.createTrackbar("Canny min value", "TrackBars2",50, 255, empty)
 cv2.createTrackbar("Canny max value", "TrackBars2",80, 255, empty)
 
 # total number of dilations / erosions
-tot_n_dil = 0
-tot_n_ero = 0
+total_dilations = 0
+total_erosions = 0
 
-# Instructions
+# Instructions (part 2)
+print('Instructions (part 2):')
 print('\t\'b\' to blur')
 print('\t\'d\' to dilate')
 print('\t\'e\' to erode')
@@ -153,15 +153,15 @@ while True:
         
         # dilate and erode
         if k & 0xFF == ord('d'):
-            dilated = cv2.dilate(edged, kernel, iterations=n_dil)
-            tot_n_dil += n_dil
-            print('Total number of dilations =', tot_n_dil)
+            dilated = cv2.dilate(edged, kernel, iterations=dilation_iterations)
+            total_dilations += dilation_iterations
+            print('Total number of dilations =', total_dilations)
             gray = dilated.copy()
             
         if k & 0xFF == ord('e'):
-            eroded = cv2.erode(dilated, kernel, iterations=n_ero)
-            tot_n_ero += n_ero
-            print('Total number of erosions =', tot_n_ero)
+            eroded = cv2.erode(dilated, kernel, iterations=erosion_iterations)
+            total_erosions += erosion_iterations
+            print('Total number of erosions =', total_erosions)
             gray = eroded.copy()       
         
         if k & 0xFF == ord('f'):
@@ -274,7 +274,7 @@ while True:
         
         img_result_scaled = stack_images(0.2, ([ img_result ] ))
         cv2.imshow("The measurement", img_result_scaled)
-        img_stack = stack_images(0.1, ([ [img_col, edged], [dilated, eroded] ] ))
+        img_stack = stack_images(0.1, ([ [masked, edged], [dilated, eroded] ] ))
         cv2.imshow("Image stack: TL = filtered by colour; TR = edged (Canny); BL = dilated; BR = eroded ", img_stack)
         
     except Exception:
@@ -291,12 +291,12 @@ print('\thue:', h_min, h_max)
 print('\tsaturation:', s_min, s_max)
 print('\tvalue:', v_min, v_max)
 
-print('\tTotal dilations:', tot_n_dil)
-print('\tTotal erosions:', tot_n_ero)
+print('\tTotal dilations:', total_dilations)
+print('\tTotal erosions:', total_erosions)
 
 print('\tblur kernel', kernel_blur)
-kernel_de = (kernel_de_dims, kernel_de_dims)
-print('\tDilation/erosion kernel', kernel_de)
+kernel_dimensions_tuple = (kernel_dimension_DE, kernel_dimension_DE)
+print('\tDilation/erosion kernel', kernel_dimensions_tuple)
 
 print('\tMinimum contour area: coefficient', area_min_coeff)
 print('\tMinimum contour area: power', area_min_power)
