@@ -40,14 +40,14 @@ n_ero = 1
 # HSV FILTER:
 
 # Setup HSV filter trackbars
-cv2.namedWindow("TrackBars")
-cv2.resizeWindow("TrackBars",640,240)
-cv2.createTrackbar("Hue Min","TrackBars",0,240, empty)
-cv2.createTrackbar("Hue Max","TrackBars",13,240,empty)
-cv2.createTrackbar("Sat Min","TrackBars",23,240,empty)
-cv2.createTrackbar("Sat Max","TrackBars",239,239,empty)
-cv2.createTrackbar("Val Min","TrackBars",0,255,empty)
-cv2.createTrackbar("Val Max","TrackBars",77,255,empty)
+cv2.namedWindow("TrackBars1")
+cv2.resizeWindow("TrackBars1",640,240)
+cv2.createTrackbar("Hue Min","TrackBars1",0,240, empty)
+cv2.createTrackbar("Hue Max","TrackBars1",13,240,empty)
+cv2.createTrackbar("Sat Min","TrackBars1",23,240,empty)
+cv2.createTrackbar("Sat Max","TrackBars1",239,239,empty)
+cv2.createTrackbar("Val Min","TrackBars1",0,255,empty)
+cv2.createTrackbar("Val Max","TrackBars1",77,255,empty)
 
 # Instructions
 print('Instructions:')
@@ -69,12 +69,12 @@ while True:
     imgHSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     
     # get trackbar values
-    h_min = cv2.getTrackbarPos("Hue Min","TrackBars")
-    h_max = cv2.getTrackbarPos("Hue Max", "TrackBars")
-    s_min = cv2.getTrackbarPos("Sat Min", "TrackBars")
-    s_max = cv2.getTrackbarPos("Sat Max", "TrackBars")
-    v_min = cv2.getTrackbarPos("Val Min", "TrackBars")
-    v_max = cv2.getTrackbarPos("Val Max", "TrackBars")
+    h_min = cv2.getTrackbarPos("Hue Min","TrackBars1")
+    h_max = cv2.getTrackbarPos("Hue Max", "TrackBars1")
+    s_min = cv2.getTrackbarPos("Sat Min", "TrackBars1")
+    s_max = cv2.getTrackbarPos("Sat Max", "TrackBars1")
+    v_min = cv2.getTrackbarPos("Val Min", "TrackBars1")
+    v_max = cv2.getTrackbarPos("Val Max", "TrackBars1")
     
     # define HSV lower/upper bounds 
     lower = np.array([h_min,s_min,v_min])
@@ -108,15 +108,15 @@ dilated = cv2.dilate(edged, kernel, iterations=1)
 eroded = cv2.erode(dilated, kernel, iterations=1)
 
 # Setup measurement trackbars
-area_min_def = 4 # default
-area_coeff_def = 5
-area_min_max = 10 # upper bound on min area threshold
+min_area_power_def = 4 # minimum area: default power
+min_area_coeff_def = 5 # minimum area: default coefficient
+min_area_upper_bound = 10 # greatest minimum area selectable
 cv2.namedWindow("TrackBars2")
 cv2.resizeWindow("TrackBars2",500,350)
-cv2.createTrackbar("Area min","TrackBars2", area_min_def, area_min_max, empty)
-cv2.createTrackbar("Area coefficient","TrackBars2", area_coeff_def, area_min_max, empty)
-cv2.createTrackbar("Min Val (Canny)", "TrackBars2",50, 255, empty)
-cv2.createTrackbar("Max Val (Canny)", "TrackBars2",80, 255, empty)
+cv2.createTrackbar("Min area: power","TrackBars2", min_area_power_def, min_area_upper_bound, empty)
+cv2.createTrackbar("Min area: coeff","TrackBars2", min_area_coeff_def, min_area_upper_bound, empty)
+cv2.createTrackbar("Canny min value", "TrackBars2",50, 255, empty)
+cv2.createTrackbar("Canny max value", "TrackBars2",80, 255, empty)
 
 # total number of dilations / erosions
 tot_n_dil = 0
@@ -144,10 +144,10 @@ while True:
         if k & 0xFF == ord('b'):
             gray = cv2.GaussianBlur(gray, (7, 7), 0)
             
-        area_min_power = cv2.getTrackbarPos("Area min","TrackBars2")
-        area_min_coeff = cv2.getTrackbarPos("Area coefficient","TrackBars2")
-        canny_min = cv2.getTrackbarPos("Min Val (Canny)","TrackBars2")
-        canny_max = cv2.getTrackbarPos("Max Val (Canny)","TrackBars2")
+        area_min_power = cv2.getTrackbarPos("Min area: power","TrackBars2")
+        area_min_coeff = cv2.getTrackbarPos("Min area: coeff","TrackBars2")
+        canny_min = cv2.getTrackbarPos("Canny min value","TrackBars2")
+        canny_max = cv2.getTrackbarPos("Canny max value","TrackBars2")
         
         edged = cv2.Canny(gray, canny_min, canny_max)
         
