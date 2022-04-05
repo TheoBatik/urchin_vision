@@ -7,6 +7,10 @@ import numpy as np
 # import argparse
 import imutils
 import cv2
+import pandas as pd
+from os.path import exists
+from datetime import date, datetime
+
 
 import functions as f
 
@@ -17,7 +21,8 @@ stack_images = f.stack_images
 empty = f.empty
 midpoint = f.midpoint
 hsv_filter = f.hsv_filter
-
+# big_bounding_boxes = f.big_bounding_boxes
+tuple_average = f.tuple_average
 
 # # construct the argument parse and parse the arguments
 # ap = argparse.ArgumentParser()
@@ -33,8 +38,11 @@ pixelsPerMetric = None
 img = cv2.imread(args["image"])
 img_result = img.copy()
 
+# Parameters
 dilation_iterations = 1
 erosion_iterations = 1
+action_sequence = []
+parameter_values = {}
 
 # HSV FILTER
 # Initialise 'contol panel' for HSV filter, and return HSV-filtered / 'masked' image
@@ -58,7 +66,8 @@ while True:
     
     # define key press as
     k = cv2.waitKey(1)
-    print(k)
+    # print(k)
+
     # press 'n' to break loop
     if k & 0xFF == ord('n'):
         break
@@ -87,6 +96,16 @@ while True:
     cv2.imshow("Filter by HSV", masked_scaled)
 
 cv2.destroyAllWindows()
+
+# update parameter values 1
+parameter_values['hue_min'] = h_min
+parameter_values['hue_max'] = h_max
+parameter_values['saturation_min'] = s_min
+parameter_values['saturation_max'] = s_max
+parameter_values['value_min'] = v_min
+parameter_values['value_max'] = v_max
+parameter_values['dilation_iterations'] = dilation_iterations
+parameter_values['erosion_iterations'] = erosion_iterations
 
 # MEASURMENT
 ## leverages dilations, erosions, blurs, contour detection and minimum area bounding boxes
@@ -121,6 +140,15 @@ cv2.createTrackbar("Canny max value", "TrackBars2",80, 255, empty)
 total_dilations = 0
 total_erosions = 0
 
+# Operations and actions
+quit = 'q'
+next = 'n'
+blur = 'b'
+dilate = 'd'
+erode = 'e'
+get_contours = 'f'
+get_widths = 'x'
+
 # Instructions (part 2)
 print('Instructions (part 2):')
 print('\t\'b\' to blur')
@@ -132,71 +160,72 @@ print('\t\'x\' to fetch/display the bounding boxes')
 # Initialise contol panel for blur, erosions, dilations and measurement
 while True:
     
-    try:      
-        # Define key press
-        k = cv2.waitKey(1)
+    try: 
         
-        # press 'q' to exit
-        if k & 0xFF == ord('q'):
-            break
-        
-        # press 'b' to blur
-        if k & 0xFF == ord('b'):
-            gray = cv2.GaussianBlur(gray, (7, 7), 0)
-            
+        # get trackbar2 values
         area_min_power = cv2.getTrackbarPos("Min area: power","TrackBars2")
         area_min_coeff = cv2.getTrackbarPos("Min area: coeff","TrackBars2")
         canny_min = cv2.getTrackbarPos("Canny min value","TrackBars2")
         canny_max = cv2.getTrackbarPos("Canny max value","TrackBars2")
-        
+
+        # Prepare edge-map
         edged = cv2.Canny(gray, canny_min, canny_max)
+
+        # Define key press
+        k = cv2.waitKey(1)
+        
+        # press 'q' to exit
+        if k & 0xFF == ord(quit):
+            break
+        
+        # press 'b' to blur
+        if k & 0xFF == ord(blur):
+            gray = cv2.GaussianBlur(gray, (7, 7), 0)
+            action_sequence.append(blur)
         
         # dilate and erode
-        if k & 0xFF == ord('d'):
+        if k & 0xFF == ord(dilate):
             dilated = cv2.dilate(edged, kernel, iterations=dilation_iterations)
+            action_sequence.append(dilate)
             total_dilations += dilation_iterations
             print('Total number of dilations =', total_dilations)
             gray = dilated.copy()
             
-        if k & 0xFF == ord('e'):
+        if k & 0xFF == ord(erode):
             eroded = cv2.erode(dilated, kernel, iterations=erosion_iterations)
+            action_sequence.append(erode)
             total_erosions += erosion_iterations
             print('Total number of erosions =', total_erosions)
-            gray = eroded.copy()       
+            gray = eroded.copy()
         
-        if k & 0xFF == ord('f'):
+        # Get contours
+        if k & 0xFF == ord(get_contours):
             
             print('Fetching contours...')
-            
-            # Setup image result and containers for sufficiently large contours and bounding boxes
-           
-            # cnts_big = []
-            # boxes = []
-            
+                        
             # find contours in the edge map
             # cnts, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
             # Or, find contours in the dilated map
             # cnts, _ = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cnts, _ = cv2.findContours(eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
+            action_sequence.append(get_contours)
+
             # sort the contours from left-to-right and initialize the
             cnts = contours.sort_contours(cnts, method='left-to-right')        # 'pixels per metric' calibration variable
-            print('\t=> ', len(cnts[0]))
+            print('\t=> ', len(cnts[0]))     
         
-        
-        if k & 0xFF == ord('x'):
+        # Get the bounding boxes and compute widths
+        if k & 0xFF == ord(get_widths):
             
             img_result = img.copy()
              
             print('Fetching bounding boxes...')
             
+            
             # Counters for contours: in = sufficiently large; out = too small
             count_in = 0
-            count_out = 0
-            
-            # Results container
-            
+            count_out = 0           
             
             # loop through the contours 
             for i, c in enumerate(cnts[0]):
@@ -220,55 +249,57 @@ while True:
                 cv2.drawContours(img_result, [c], 0, (0, 255, 0), 5)
                  
             
-        # cv2.drawContours(img_result, boxes, -1, (0, 255, 0), q2)
-            # cv2.drawContours(img_result, cnts_big, -1, (0, 255, 0), 5)
-            # unpack the ordered bounding box
-        #     
+                # cv2.drawContours(img_result, boxes, -1, (0, 255, 0), q2)
+                # cv2.drawContours(img_result, cnts_big, -1, (0, 255, 0), 5)
+                
+                # unpack the ordered bounding box
                 (tl, tr, br, bl) = box
-          
-           	# compute the midpoint between the top-left aqnd top-right coordinates
+            
+                # compute the midpoint between the top-left aqnd top-right coordinates
                 (tltrX, tltrY) = midpoint(tl, tr)
                 (blbrX, blbrY) = midpoint(bl, br)
-          
-              # compute the midpoint between the top-right and bottom-right
+            
+                # compute the midpoint between the top-right and bottom-right
                 (tlblX, tlblY) = midpoint(tl, bl)
                 (trbrX, trbrY) = midpoint(tr, br)
                 
-                 	# draw the midpoints on the image
+                    # draw the midpoints on the image
                 cv2.circle(img_result, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
                 cv2.circle(img_result, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
                 cv2.circle(img_result, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
                 cv2.circle(img_result, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
                 
-                 	# draw lines between the midpoints
+                    # draw lines between the midpoints
                 cv2.line(img_result, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)),
-                		(255, 0, 255), 2)
+                        (255, 0, 255), 2)
                 cv2.line(img_result, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)),
-                		(255, 0, 255), 2)
+                        (255, 0, 255), 2)
                 
-                 	# compute the Euclidean distance between the midpoints, in pixels
+                    # compute the Euclidean distance between the midpoints, in pixels
                 dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
                 dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
                 
-                 	# if the pixels per metric has not been initialized, then
-                 	# compute it as the ratio of pixels to supplied metric
-                 	# (in this case, inches)
+                    # if the pixels per metric has not been initialized, then
+                    # compute it as the ratio of pixels to supplied metric
+                    # (in this case, inches)
                 if pixelsPerMetric is None:
                     pixelsPerMetric = dB / args["width"]
                 
-                 	# compute the size of the object
+                    # compute the size of the object
                 dimA = dA / pixelsPerMetric
                 dimB = dB / pixelsPerMetric
                 
                 results.append( (dimA, dimB) )
                 
-                 	# draw the object sizes on the image
+                    # draw the object sizes on the image
                 cv2.putText(img_result, "{:.1f}in".format(dimA),
-                		(int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
-                		6, (0, 0, 0), 10)
+                        (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
+                        6, (0, 0, 0), 10)
                 cv2.putText(img_result, "{:.1f}in".format(dimB),
-                		(int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX,
-                		6, (0, 0, 0), 10)
+                        (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX,
+                        6, (0, 0, 0), 10)
+            average_1, average_2 = tuple_average(results)
+            average_overall = f.average_overall(results)
             print('Contours: \n\t total = ', len(cnts[0]), 'Large enough = ', count_in, ' too small = ', count_out)   
             print('\t=> done.')
         
@@ -283,32 +314,50 @@ while True:
     
 cv2.destroyAllWindows()
 
+# update parameter values 2
+parameter_values['kernel_blur'] = kernel_blur
+kernel_dimensions_tuple = (kernel_dimension_DE, kernel_dimension_DE)
+parameter_values['Dilation/erosion kernel'] = kernel_dimensions_tuple
+parameter_values['Minimum contour area: coefficient'] = area_min_coeff
+parameter_values['Minimum contour area: power'] = area_min_power
+parameter_values['Canny value: min'] = canny_min
+parameter_values['Canny value: max'] = canny_max
+parameter_values['Action sequence'] = action_sequence
 
 # PARAMETER VALUES FINAL
-
-print('\nFINAL PARAMETER VALUES:')
-print('\thue:', h_min, h_max)
-print('\tsaturation:', s_min, s_max)
-print('\tvalue:', v_min, v_max)
-
-print('\tTotal dilations:', total_dilations)
-print('\tTotal erosions:', total_erosions)
-
-print('\tblur kernel', kernel_blur)
-kernel_dimensions_tuple = (kernel_dimension_DE, kernel_dimension_DE)
-print('\tDilation/erosion kernel', kernel_dimensions_tuple)
-
-print('\tMinimum contour area: coefficient', area_min_coeff)
-print('\tMinimum contour area: power', area_min_power)
-print('\tCanny value: min', canny_min)   
-print('\tCanny value: max', canny_max)     
+print('Parameter Values:', parameter_values)
 
 # FINAL RESULTS
 print('\nRESULTS:\n', results)
+print(average_1, average_2)
+print('average_overall', average_overall)
 
+# column headers
+headers = ['series_name', 'number_of_urchins', 'average_overall', 'average_width_1', 'average_width_2', 'date', 'time', 'parameter_values']
 
-# d = 1,2,3; e = 1 
+# Check if csv file already exists, if not create one
+file_name = 'measurements.csv'
+file_exists = exists(file_name)
 
+series_name = str( input('Enter the name of this measurement (e.g. \'Series A\'). ') )
+number_of_urchins = len(results) - 1
+today_unformatted = date.today()
+today = today_unformatted.strftime("%d/%m/%Y")
+now_unformatted = datetime.now()
+now = now_unformatted.strftime("%H:%M:%S")
+print('today', today)
+print('now', now)
+
+output_row = [ [series_name, number_of_urchins, average_overall, average_1, average_2, today, now, parameter_values] ]
+
+if file_exists:
+    measurements_old = pd.read_csv(file_name)
+    measurements_new = pd.DataFrame(output_row, columns = headers)
+    measurements = pd.concat( [measurements_old, measurements_new], ignore_index = True, axis = 0)
+    measurements.to_csv(file_name, index = False)
+else: 
+    measurements = pd.DataFrame(output_row, columns = headers)
+    measurements.to_csv(file_name, index = False)
 
 
 # Fix the area

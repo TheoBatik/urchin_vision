@@ -8,6 +8,7 @@ opencv-python = "*"
 imutils = "*"
 numpy = "*"
 scipy = "*"
+pandas = "*"
 
 [dev-packages]
 
