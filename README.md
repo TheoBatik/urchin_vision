@@ -21,4 +21,4 @@ Run program, follow prompts and check if contours follow the test of the urchin 
 # Trouble shooting:
 If edge detection is no accurate, generally only the val (Value) of the HSV filter needs to be adjusted.
 Increase exposure of image using other editing software if contour detection is not working with editting tools within script 
-![image](https://user-images.githubusercontent.com/102225039/165950282-041313f5-bd8a-4bdd-86a6-074814c3cd32.png)
+
