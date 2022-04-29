@@ -1,14 +1,8 @@
-## **USAGE**
+## **Setup and Run**
 
-**Run the following command in terminal in the parent folder of the repo:**
-
-python getWidths.py --image images/example.png --width 0.955
-
---image specifies the image path <br />
---width sets the reference width
-
-
-
-1) installing pip
+1) install pip
 2) pip install pipenv
-3) pipenv run python get_widths.py
+3) pipenv run python measure.py -i image_name -w width
+
+--i specifies the image name
+--w sets the reference width

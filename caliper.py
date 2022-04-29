@@ -3,22 +3,12 @@ from scipy.spatial import distance as dist
 from imutils import perspective
 from imutils import contours
 import numpy as np
-# import argparse
 import imutils
 import cv2
 import pandas as pd
 from os.path import exists, join
 from os import getcwd
 from datetime import date, datetime
-
-# # construct the argument parse and parse the arguments
-# ap = argparse.ArgumentParser()
-# ap.add_argument("-i", "--image", required=True, help="path to the input image")
-# ap.add_argument("-w", "--width", type=float, required=True,
-#                 help="width of the left-most object in the image (in cm)")
-# args = vars(ap.parse_args())
-
-args = {"image":'example2', "width":5}
 
 class Caliper():
 
@@ -480,9 +470,7 @@ class Caliper():
             print(path_to_output_image)
             cv2.imwrite(path_to_output_image, self.img_result) 
 
-c = Caliper(args["image"], args["width"], help = True)
-image = c.img
-masked = c.hsv_filter(image)
-image_result = c.measure(masked)
-c.output()
+
+
+
 
