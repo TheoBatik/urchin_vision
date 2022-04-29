@@ -5,10 +5,10 @@ name = "pypi"
 
 [packages]
 opencv-python = "*"
-imutils = "*"
 numpy = "*"
-scipy = "*"
 pandas = "*"
+scipy = "*"
+imutils = "*"
 
 [dev-packages]
 
