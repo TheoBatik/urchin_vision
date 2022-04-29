@@ -1,5 +1,4 @@
-
-# import the necessary packages
+# imports
 from scipy.spatial import distance as dist
 from imutils import perspective
 from imutils import contours
@@ -8,35 +7,34 @@ import numpy as np
 import imutils
 import cv2
 import pandas as pd
-from os.path import exists
+from os.path import exists, join
+from os import getcwd
 from datetime import date, datetime
-
-
-import functions as f
-
-# SETUP
 
 # # construct the argument parse and parse the arguments
 # ap = argparse.ArgumentParser()
 # ap.add_argument("-i", "--image", required=True, help="path to the input image")
 # ap.add_argument("-w", "--width", type=float, required=True,
-#                 help="width of the left-most object in the image (in inches)")
+#                 help="width of the left-most object in the image (in cm)")
 # args = vars(ap.parse_args())
 
-args = {"image":'images/example2.jpg', "width":5}
+args = {"image":'example2', "width":5}
 
 class Caliper():
 
     '''class for measuring the diameter of multiple urchins given input image with reference object of known length/width.'''
     
-    def __init__(self, path_to_image, reference_object_length = None, pixels_per_cm = None, help = False):
+    def __init__(self, image_name, reference_object_length = None, pixels_per_cm = None, help = False):
 
         # calibration
         self.reference_object_length = reference_object_length
         self.pixels_per_cm = pixels_per_cm
 
         # load image
-        self.path_to_image = path_to_image
+        self.image_name = image_name
+        self.image_format = '.jpg'
+        self.image_folder = 'images'
+        self.path_to_image = join(self.image_folder, self.image_name + self.image_format)
         self.img = cv2.imread(self.path_to_image)
 
         # options
@@ -76,23 +74,19 @@ class Caliper():
 
         # results
         self.results = []
-        self.img_result = self.img.copy()
+        self.img_result = None
+        self.average_smaller = None
+        self.average_larger = None
         self.average = None
 
+        # output 
+        self.headers = ['basket_name' , 'date', 'time', 'number_of_urchins', 'average_of_smallest', 
+            'average_of_largest', 'average_overall', 'results', 'parameter_values']
+        self.file_name = 'measurements.csv'
+        self.file_exists = exists(self.file_name)
+        self.number_of_urchins = None
+
     # methods
-    
-    def average_of_smallest(self, results):
-            n = len(results) - 1 # remove reference object form total urchins
-            sum = 0
-            for r in results:
-                r0 = r[0]
-                r1 = r[1]
-                if r0 < r1:
-                    sum += r0
-                else:
-                    sum += r1
-            average = sum/n
-            return average
 
     def hsv_filter(self, image):
 
@@ -110,9 +104,10 @@ class Caliper():
 
         # instructions (part 1)
         if self.help:
-            print('Instructions (part 1):')
-            print('\tPress \'n\' to move onto contour detection')
-            print('\tUse trackbars to adjust the HSV filter')
+            print('\nInstructions:')
+            print('\tUse the trackbars to adjust the HSV filter')
+            print('\t\'{}\' to quit'.format(self.quit))
+            
 
         while True:
             
@@ -160,8 +155,8 @@ class Caliper():
 
     def measure(self, hsv_filtered_image):
         '''
-        Initialises control panel for urchin diameter measurment.
-        Enables implemention of dilations, erosions, and blurs, contour detection,
+        Initialises a control panel for the urchin diameter measurment:
+        enables implemention of dilations, erosions, and blurs, contour detection,
         minimum contour area control, and fetching of minimum area bounding rectangles.
         
         Returns:
@@ -174,6 +169,7 @@ class Caliper():
 
         # extract edges
         edged = cv2.Canny(gray, 50, 100)
+        img_result = self.img
 
         # dilate and erode
         dim_kernel_dilate_erode = self.parameter_values["dim_kernel_dilate_erode"]
@@ -183,11 +179,11 @@ class Caliper():
 
         # setup measurement trackbars
         cv2.namedWindow(self.trackbar_name_2)
-        cv2.resizeWindow(self.trackbar_name_2,500,350)
-        cv2.createTrackbar("Min area: power",self.trackbar_name_2, self.min_area_power_def, self.min_area_upper_bound, self.empty)
-        cv2.createTrackbar("Min area: coeff",self.trackbar_name_2, self.min_area_coeff_def, self.min_area_upper_bound, self.empty)
-        cv2.createTrackbar("Canny min value", self.trackbar_name_2, 50, 255, self.empty)
-        cv2.createTrackbar("Canny max value", self.trackbar_name_2, 80, 255, self.empty)
+        cv2.resizeWindow(self.trackbar_name_2,700,170)
+        cv2.createTrackbar("m_area: power",self.trackbar_name_2, self.min_area_power_def, self.min_area_upper_bound, self.empty)
+        cv2.createTrackbar("m_area: coeff",self.trackbar_name_2, self.min_area_coeff_def, self.min_area_upper_bound, self.empty)
+        cv2.createTrackbar("c_min", self.trackbar_name_2, 50, 255, self.empty)
+        cv2.createTrackbar("c_max", self.trackbar_name_2, 80, 255, self.empty)
 
         # total number of dilations/erosions 
         total_dilations = 0
@@ -197,27 +193,27 @@ class Caliper():
 
         # Instructions (part 2)
         if self.help:
-            print('Instructions (part 2):')
-            print('\t\'b\' to blur')
-            print('\t\'d\' to dilate')
-            print('\t\'e\' to erode')
-            print('\t\'c\' to fetch the contours')
-            print('\t\'m\' to display measurements')
+            print('\tUse the trackbars to adjust the Canny values and minimum area')
+            print('\t\'{}\' to blur'.format(self.blur))
+            print('\t\'{}\' to dilate'.format(self.dilate))
+            print('\t\'{}\' to erode'.format(self.erode))
+            print('\t\'{}\' to fetch the contours'.format(self.get_contours))
+            print('\t\'{}\' to display measurements'.format(self.take_measurement))
 
         while True:
             
             # try: 
                 
             # get trackbar_2 values
-            area_min_power = cv2.getTrackbarPos("Min area: power", self.trackbar_name_2)
-            area_min_coeff = cv2.getTrackbarPos("Min area: coeff", self.trackbar_name_2)
-            canny_min = cv2.getTrackbarPos("Canny min value", self.trackbar_name_2)
-            canny_max = cv2.getTrackbarPos("Canny max value", self.trackbar_name_2)
+            area_min_power = cv2.getTrackbarPos("m_area: power", self.trackbar_name_2)
+            area_min_coeff = cv2.getTrackbarPos("m_area: coeff", self.trackbar_name_2)
+            canny_min = cv2.getTrackbarPos("c_min", self.trackbar_name_2)
+            canny_max = cv2.getTrackbarPos("c_max", self.trackbar_name_2)
 
             # prepare edge-map
             edged = cv2.Canny(gray, canny_min, canny_max)
 
-            # Define key press
+            # define key press
             k = cv2.waitKey(1)
             
             # quit loop
@@ -234,16 +230,18 @@ class Caliper():
                 dilated = cv2.dilate(edged, kernel, iterations = dilation_iterations)
                 self.action_sequence.append(self.dilate)
                 total_dilations += dilation_iterations
-                print('Total number of dilations =', total_dilations)
                 gray = dilated.copy()
+                if self.help:
+                    print('Total number of dilations =', total_dilations)
 
             # erode 
             if k & 0xFF == ord(self.erode):
                 eroded = cv2.erode(dilated, kernel, iterations = erosion_iterations)
                 self.action_sequence.append(self.erode)
                 total_erosions += erosion_iterations
-                print('Total number of erosions =', total_erosions)
                 gray = eroded.copy()
+                if self.help:
+                    print('Total number of erosions =', total_erosions)
             
             # get contours
             if k & 0xFF == ord(self.get_contours):
@@ -262,8 +260,9 @@ class Caliper():
             # fetch the bounding boxes and take measurement
             if k & 0xFF == ord(self.take_measurement):
                 
-                setattr(self, 'img_result', self.img.copy())
-                
+                # setattr(self, 'img_result', self.img.copy())
+                img_result = self.img
+
                 # define counters for contours: _in => sufficiently large; _out => too small
                 count_in = 0
                 count_out = 0           
@@ -289,11 +288,11 @@ class Caliper():
                     # in [top-left, top-right, bottom-right, and bottom-left]
                     # order, then draw the outline of the rotated bounding box
                     box = perspective.order_points(box)
-                    cv2.drawContours(self.img_result, [box.astype("int")], -1, (255, 40, 0), 2)
-                    cv2.drawContours(self.img_result, [c], 0, (0, 255, 0), 5)
+                    cv2.drawContours(img_result, [box.astype("int")], -1, (255, 40, 0), 2)
+                    cv2.drawContours(img_result, [c], 0, (0, 255, 0), 5)
                 
-                    # cv2.drawContours(self.img_result, boxes, -1, (0, 255, 0), q2)
-                    # cv2.drawContours(self.img_result, cnts_big, -1, (0, 255, 0), 5)
+                    # cv2.drawContours(img_result, boxes, -1, (0, 255, 0), q2)
+                    # cv2.drawContours(img_result, cnts_big, -1, (0, 255, 0), 5)
                     
                     # unpack the ordered bounding box
                     (tl, tr, br, bl) = box
@@ -307,51 +306,55 @@ class Caliper():
                     (trbrX, trbrY) = self.midpoint(tr, br)
                     
                         # draw the midpoints on the image
-                    cv2.circle(self.img_result, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
-                    cv2.circle(self.img_result, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
-                    cv2.circle(self.img_result, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
-                    cv2.circle(self.img_result, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
+                    cv2.circle(img_result, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
+                    cv2.circle(img_result, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
+                    cv2.circle(img_result, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
+                    cv2.circle(img_result, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
                     
                     # draw lines between the midpoints
-                    cv2.line(self.img_result, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)), (255, 0, 255), 2)
-                    cv2.line(self.img_result, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)), (255, 0, 255), 2)
+                    cv2.line(img_result, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)), (255, 0, 255), 2)
+                    cv2.line(img_result, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)), (255, 0, 255), 2)
                     
                     # compute the Euclidean distance between the midpoints, in pixels
                     dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
                     dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
-                    
-                        # if the pixels per metric has not been initialized, then
-                        # compute it as the ratio of pixels to supplied metric
-                        # (in this case, centimeters)
 
+                    # If the pixels-per-cm ratio has not been pre-calibrated/inputted, then infer it from the reference object length
                     if self.pixels_per_cm is None and not ref_object_measured:
                         setattr(self, 'pixels_per_cm', dB / self.reference_object_length)
+                        # label reference object on image
                         ref_object_measured = True
+                        centreX = int( (trbrX + tlblX)/2 ) - 170
+                        centreY = int( (trbrY + tlblY)/2 )
+                        cv2.putText(img_result, "REF",
+                            (centreX, centreY), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
                     
-                    # compute the size of the object
+                    # compute the diameter, in cm
                     dimA = dA / self.pixels_per_cm
                     dimB = dB / self.pixels_per_cm
                     
                     # update results
                     self.results.append( (dimA, dimB) )
                     
-                    # draw the urchin diameters on the image
-                    cv2.putText(self.img_result, "{:.1f}cm".format(dimA),
-                            (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
-                    cv2.putText(self.img_result, "{:.1f}cm".format(dimB),
-                            (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
+                    # draw the diameters onto the image
+                    cv2.putText(img_result, "{:.1f}cm".format(dimA),
+                            (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+                    cv2.putText(img_result, "{:.1f}cm".format(dimB),
+                            (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
 
-                average = self.average_of_smallest(self.results)
-                setattr(self, 'average', average)
+                # compute averages
+                self.average_smaller, self.average_larger = self.tuple_average(self.results)
+                self.average = self.average_overall(self.results)
+                self.number_of_urchins = len(self.results) - 1
                 
                 if self.help:
                     print('Fetching bounding boxes...')
                     print('Contours: \n\t total = ', len(cnts[0]), 'Large enough = ', count_in, ' too small = ', count_out)   
                     print('\t=> done.')
             
-            # img_result_scaled = self.stack_images(0.2, ([ self.img_result ] ))
-            # setattr(self, 'img_result', img_result_scaled)
-            # cv2.imshow("The measurement", self.img_result)
+            img_result_scaled = self.stack_images(0.2, ([ img_result ] ))
+            setattr(self, 'img_result', img_result_scaled)
+            cv2.imshow("The measurement", self.img_result)
             img_stack = self.stack_images(0.1, ([ [masked, edged], [dilated, eroded] ] ))
             cv2.imshow("Image stack: TL = filtered by colour; TR = edged (Canny); BL = dilated; BR = eroded ", img_stack)
                 
@@ -368,6 +371,8 @@ class Caliper():
         self.parameter_values['Canny value: min'] = canny_min
         self.parameter_values['Canny value: max'] = canny_max
         self.parameter_values['Action sequence'] = self.action_sequence
+
+        return img_result
 
     def stack_images(self, scale, imgArray):
         '''stacks and scales a collection of image arrays. 
@@ -408,57 +413,76 @@ class Caliper():
     def midpoint(self, ptA, ptB):
         return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
 
+    def tuple_average(self, results):
+
+        ''' Returns averages based on the largest/smallest value within each tuple, given a list of tuples.'''   
+
+        n = len(results) - 1 # remove reference object from total urchins
+        sum_small = 0
+        sum_big = 0
+        for i, tuple in enumerate(results):
+            # Skip reference object in calc of average
+            if i == 1:
+                continue
+            if tuple[0] < tuple[1]:
+                sum_small += tuple[0]
+                sum_big += tuple[1]
+            else:
+                sum_small += tuple[1]
+                sum_big += tuple[0]
+        average_of_smallest = sum_small/n
+        average_of_largest = sum_big/n
+        return average_of_smallest, average_of_largest
+
+    def average_overall(self, results):
+
+        '''Return average based on all lengths and widths combined, skipping reference object'''
+
+        n = 2 * ( len(results) - 1 )
+        sum = 0
+        for i, tuple in enumerate( results ):
+            # Skip reference object in calc of average
+            if i == 1:
+                continue
+            sum += tuple[0] + tuple[1]
+        average_overall = sum / n
+        return average_overall
+
+    def output(self, save_image = True):
+
+        '''Writes the measurements, averages, etc to a .csv file'''
         
+        # set date & time
+        today_unformatted = date.today()
+        today = today_unformatted.strftime("%d-%m-%Y")
+        now_unformatted = datetime.now()
+        now = now_unformatted.strftime("%H-%M-%S")
 
+        # define output row
+        output_row = [ [self.image_name, today, now, self.number_of_urchins, 
+            self.average_smaller, self.average_larger, self.average, self.results, self.parameter_values] ]
 
+        # if measurement file already exists insert output row, else create new file with output
+        if self.file_exists:
+            measurements_old = pd.read_csv(self.file_name)
+            measurements_new = pd.DataFrame(output_row, columns = self.headers)
+            measurements = pd.concat( [measurements_old, measurements_new], ignore_index = True, axis = 0)
+            measurements.to_csv(self.file_name, index = False)
+        else: 
+            measurements = pd.DataFrame(output_row, columns = self.headers)
+            measurements.to_csv(self.file_name, index = False)
 
+        # save image
+        if save_image:
+            cwd = getcwd()
+            output_image_name = self.image_name + ' ' + today + ' ' + now + self.image_format
+            path_to_output_image = join(cwd, self.image_folder, output_image_name)
+            print(path_to_output_image)
+            cv2.imwrite(path_to_output_image, self.img_result) 
 
-cal = Caliper(args["image"], args["width"])
+c = Caliper(args["image"], args["width"], help = True)
+image = c.img
+masked = c.hsv_filter(image)
+image_result = c.measure(masked)
+c.output()
 
-img = cal.img
-masked = cal.hsv_filter(img)
-
-cv2.imshow("The measurement", cal.img_result)
-# cal.measure(masked)
-
-
-
-
-# # PARAMETER VALUES FINAL
-# print('Parameter Values:', parameter_values)
-
-# # FINAL RESULTS
-# print('\nRESULTS:\n', results)
-# print(average_1, average_2)
-# print('average_overall', average_overall)
-
-# # column headers
-# headers = ['series_name', 'number_of_urchins', 'average_overall', 'average_width_1', 'average_width_2', 'date', 'time', 'parameter_values']
-
-# # Check if csv file already exists, if not create one
-# file_name = 'measurements.csv'
-# file_exists = exists(file_name)
-
-# series_name = str( input('Enter the name of this measurement (e.g. \'Series A\'). ') )
-# number_of_urchins = len(results) - 1
-# today_unformatted = date.today()
-# today = today_unformatted.strftime("%d/%m/%Y")
-# now_unformatted = datetime.now()
-# now = now_unformatted.strftime("%H:%M:%S")
-# print('today', today)
-# print('now', now)
-
-# output_row = [ [series_name, number_of_urchins, average_overall, average_1, average_2, today, now, parameter_values] ]
-
-# if file_exists:
-#     measurements_old = pd.read_csv(file_name)
-#     measurements_new = pd.DataFrame(output_row, columns = headers)
-#     measurements = pd.concat( [measurements_old, measurements_new], ignore_index = True, axis = 0)
-#     measurements.to_csv(file_name, index = False)
-# else: 
-#     measurements = pd.DataFrame(output_row, columns = headers)
-#     measurements.to_csv(file_name, index = False)
-
-
-# # Fix the area
-# # Track too long to load
