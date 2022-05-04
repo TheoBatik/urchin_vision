@@ -9,6 +9,7 @@ args = vars(ap.parse_args())
 args = {"image":'example2', "width":5}
 
 c = Caliper(args["image"], args["width"], help = True)
+print(c.image_folder, c.image_name)
 image = c.img
 masked = c.hsv_filter(image)
 image_result = c.measure(masked)

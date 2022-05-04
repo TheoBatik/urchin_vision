@@ -345,7 +345,7 @@ class Caliper():
             img_result_scaled = self.stack_images(0.2, ([ img_result ] ))
             setattr(self, 'img_result', img_result_scaled)
             cv2.imshow("The measurement", self.img_result)
-            img_stack = self.stack_images(0.1, ([ [masked, edged], [dilated, eroded] ] ))
+            img_stack = self.stack_images(0.1, ([ [hsv_filtered_image, edged], [dilated, eroded] ] ))
             cv2.imshow("Image stack: TL = filtered by colour; TR = edged (Canny); BL = dilated; BR = eroded ", img_stack)
                 
             # except Exception:
