@@ -16,7 +16,7 @@ While lighting or distance from measurands does not need to be standardised, if 
 
 # Instructions for acquiring images
 
-The “photo box” can be made from three common styrofoam boxes () stacked on top of each other (example: https://drive.google.com/file/d/1zsAd7OjO3RfXeEMMIKvnMRS8KP7lDuzM/view?usp=sharing).
+The “photo box” can be made from three common styrofoam boxes (70cm x 35cm x18cm) stacked on top of each other (example: https://drive.google.com/file/d/1zsAd7OjO3RfXeEMMIKvnMRS8KP7lDuzM/view?usp=sharing).
 
 The bottom “floors” of the top two boxes are cut out. 
 
