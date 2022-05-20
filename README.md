@@ -1,12 +1,18 @@
-## Setup and Run
+# Setup
 
-1) install pip
-2) pip install pipenv
-3) pipenv run python measure.py -i image_name -w width
-pipenv run python measure.py -i example2 -w 5
+Install the packages specified in requirements.txt. Any method is fine, but we recommend using pipenv. In terminal, cd into repo's parent folder and run following commands:
+1. install pip
+2. pip install pipenv
+3. pipenv install -r requirements.txt
+# Run
 
---i specifies the image name
---w sets the reference width
+To take the measurements, run the following:
+
+    pipenv run python measure.py -i image_name -w width
+
+The --i flag specifies the image name and --w sets the reference object width. For example, 
+
+    pipenv run python measure.py -i example2 -w 5
 
 # General notes
 
