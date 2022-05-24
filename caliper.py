@@ -223,6 +223,33 @@ class Caliper():
             print('\t=> ', len(cnts[0])) 
         return cnts
 
+    def unpack_bounding_box(self, c, img_result):
+        
+        '''Computes the minimum area rectangle of contour, c,
+        and draws it onto the image result.
+        
+        Returns: unpacked vertices, and image result'''
+        
+        # compute the rotated bounding box of the contour
+        box = cv2.minAreaRect(c)
+        box = cv2.cv.BoxPoints(box) if imutils.is_cv2() else cv2.boxPoints(box)
+        box = np.array(box, dtype="int")
+
+        # order the points in the contour such that they appear
+        # as [top-left, top-right, bottom-right, and bottom-left]
+        box = perspective.order_points(box)
+
+        # draw
+        cv2.drawContours(img_result, [box.astype("int")], -1, (255, 40, 0), 2)
+        cv2.drawContours(img_result, [c], 0, (0, 255, 0), 5)
+    
+        # cv2.drawContours(img_result, boxes, -1, (0, 255, 0), q2)
+        # cv2.drawContours(img_result, cnts_big, -1, (0, 255, 0), 5)
+        
+        # unpack the ordered bounding box
+        (tl, tr, br, bl) = box
+        return tl, tr, br, bl, img_result
+
 
     def measure(self, hsv_filtered_image):
         '''
@@ -235,28 +262,6 @@ class Caliper():
         Returns:
         image result with contours, bounding boxes and measured diameters drawn on.'''
 
-        # convert to grayscale and blur
-        gray = cv2.cvtColor(hsv_filtered_image, cv2.COLOR_BGR2GRAY)
-        gray = self.blur_image(gray)
-
-        # extract edges
-        edged = cv2.Canny(gray, 50, 100)
-        img_result = self.img
-
-        # dilate and erode
-        dim_kernel_dilate_erode = self.parameter_values["dim_kernel_dilate_erode"]
-        kernel = np.ones( dim_kernel_dilate_erode, np.uint8)
-        dilated = cv2.dilate(edged, kernel, iterations=1)
-        eroded = cv2.erode(dilated, kernel, iterations=1)
-
-        self.create_measurement_trackbars()
-
-        # total number of dilations/erosions 
-        total_dilations = 0
-        total_erosions = 0
-        #dilation_iterations = self.parameter_values["dilation_iterations"]
-        # erosion_iterations = self.parameter_values["erosion_iterations"]
-
         # Instructions (part 2)
         if self.help:
             print('\tUse the trackbars to adjust the Canny values and minimum area')
@@ -265,6 +270,25 @@ class Caliper():
             print('\t\'{}\' to erode'.format(self.erode))
             print('\t\'{}\' to fetch the contours'.format(self.get_contours))
             print('\t\'{}\' to display measurements'.format(self.take_measurement))
+
+        # convert to grayscale and blur
+        gray = cv2.cvtColor(hsv_filtered_image, cv2.COLOR_BGR2GRAY)
+        gray = self.blur_image(gray)
+
+        # extract edges
+        edged = cv2.Canny(gray, 50, 100)
+        img_result = self.img
+
+        # total number of dilations/erosions (counters)
+        total_dilations = 0
+        total_erosions = 0
+
+        # dilate and erode
+        dilated, total_dilations = self.dilate_image(edged, total_dilations)
+        eroded, total_erosions = self.erode_image(dilated, total_erosions)
+
+        self.create_measurement_trackbars()
+       
 
         while True:
             
@@ -299,17 +323,7 @@ class Caliper():
             
             # get contours
             if k & 0xFF == ord(self.get_contours):
-                cnts = self.get_contours_from_eroded_image(eroded)           
-                # # get contours from the eroded image
-                # cnts, _ = cv2.findContours(eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                # self.action_sequence.append(self.get_contours)
-
-                # # sort the contours from left-to-right
-                # cnts = contours.sort_contours(cnts, method='left-to-right')
-                
-                # if self.help:
-                #     print('Fetching contours...')
-                #     print('\t=> ', len(cnts[0]))     
+                cnts = self.get_contours_from_eroded_image(eroded)   
             
             # fetch the bounding boxes and take measurement
             if k & 0xFF == ord(self.take_measurement):
@@ -333,23 +347,7 @@ class Caliper():
                         continue
                     count_in += 1
 
-                    # compute the rotated bounding box of the contour
-                    box = cv2.minAreaRect(c)
-                    box = cv2.cv.BoxPoints(box) if imutils.is_cv2() else cv2.boxPoints(box)
-                    box = np.array(box, dtype="int")
-            
-                    # order the points in the contour such that they appear
-                    # in [top-left, top-right, bottom-right, and bottom-left]
-                    # order, then draw the outline of the rotated bounding box
-                    box = perspective.order_points(box)
-                    cv2.drawContours(img_result, [box.astype("int")], -1, (255, 40, 0), 2)
-                    cv2.drawContours(img_result, [c], 0, (0, 255, 0), 5)
-                
-                    # cv2.drawContours(img_result, boxes, -1, (0, 255, 0), q2)
-                    # cv2.drawContours(img_result, cnts_big, -1, (0, 255, 0), 5)
-                    
-                    # unpack the ordered bounding box
-                    (tl, tr, br, bl) = box
+                    tl, tr, br, bl, img_result = self.unpack_bounding_box(c, img_result)
                 
                     # compute the midpoint between the top-left aqnd top-right coordinates
                     (tltrX, tltrY) = self.midpoint(tl, tr)
