@@ -4,4 +4,4 @@
 *.jpeg
 Pipfile
 Pipfile.lock
-__pycache*
+__pycache__

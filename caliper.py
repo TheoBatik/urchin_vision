@@ -168,19 +168,36 @@ class Caliper():
 
             return masked
 
+
+    def create_measurement_trackbars(self):
+        cv2.namedWindow(self.trackbar_name_2)
+        cv2.resizeWindow(self.trackbar_name_2,700,170)
+        cv2.createTrackbar("m_area: power",self.trackbar_name_2, self.min_area_power_def, self.min_area_upper_bound, self.empty)
+        cv2.createTrackbar("m_area: coeff",self.trackbar_name_2, self.min_area_coeff_def, self.min_area_upper_bound, self.empty)
+        cv2.createTrackbar("c_min", self.trackbar_name_2, 50, 255, self.empty)
+        cv2.createTrackbar("c_max", self.trackbar_name_2, 80, 255, self.empty)
+
+    def blur_image(self, gray):
+        '''Returns blured image. Input must be grayscale.'''
+        dim_kernel_blur = (7, 7) #self.parameter_values["dim_kernel_blur"]
+        gray_blur = cv2.GaussianBlur(gray, dim_kernel_blur, 0)
+        self.action_sequence.append(self.blur)
+        return gray_blur
+
     def measure(self, hsv_filtered_image):
         '''
         Initialises a control panel for the urchin diameter measurment:
         enables implemention of dilations, erosions, and blurs, contour detection,
         minimum contour area control, and fetching of minimum area bounding rectangles.
         
+        Writes: measurements/parameters to .csv file
+
         Returns:
         image result with contours, bounding boxes and measured diameters drawn on.'''
 
         # convert to grayscale and blur
         gray = cv2.cvtColor(hsv_filtered_image, cv2.COLOR_BGR2GRAY)
-        dim_kernel_blur = self.parameter_values["dim_kernel_blur"]
-        gray = cv2.GaussianBlur(gray, dim_kernel_blur, 0)
+        gray = self.blur_image(gray)
 
         # extract edges
         edged = cv2.Canny(gray, 50, 100)
@@ -192,13 +209,7 @@ class Caliper():
         dilated = cv2.dilate(edged, kernel, iterations=1)
         eroded = cv2.erode(dilated, kernel, iterations=1)
 
-        # setup measurement trackbars
-        cv2.namedWindow(self.trackbar_name_2)
-        cv2.resizeWindow(self.trackbar_name_2,700,170)
-        cv2.createTrackbar("m_area: power",self.trackbar_name_2, self.min_area_power_def, self.min_area_upper_bound, self.empty)
-        cv2.createTrackbar("m_area: coeff",self.trackbar_name_2, self.min_area_coeff_def, self.min_area_upper_bound, self.empty)
-        cv2.createTrackbar("c_min", self.trackbar_name_2, 50, 255, self.empty)
-        cv2.createTrackbar("c_max", self.trackbar_name_2, 80, 255, self.empty)
+        self.create_measurement_trackbars()
 
         # total number of dilations/erosions 
         total_dilations = 0
@@ -237,8 +248,7 @@ class Caliper():
             
             # blur
             if k & 0xFF == ord(self.blur):
-                gray = cv2.GaussianBlur(gray, dim_kernel_blur, 0)
-                self.action_sequence.append(self.blur)
+                gray = self.blur_image(gray)
             
             # dilate
             if k & 0xFF == ord(self.dilate):
@@ -380,7 +390,6 @@ class Caliper():
         cv2.destroyAllWindows()
 
         # update parameter values
-        self.parameter_values['dim_kernel_blur'] = dim_kernel_blur
         self.parameter_values['Minimum contour area: coefficient'] = area_min_coeff
         self.parameter_values['Minimum contour area: power'] = area_min_power
         self.parameter_values['Canny value: min'] = canny_min
