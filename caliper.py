@@ -193,7 +193,18 @@ class Caliper():
         total_dilations += dilation_iterations
         if self.help:
             print('Total number of dilations =', total_dilations)
-        return dilated
+        return dilated, total_dilations
+
+    def erode_image(self, dilated_image, total_erosions):
+        dim_kernel_dilate_erode = self.parameter_values["dim_kernel_dilate_erode"]
+        kernel = np.ones( dim_kernel_dilate_erode, np.uint8)
+        erosion_iterations = self.parameter_values["erosion_iterations"]
+        eroded = cv2.erode(dilated_image, kernel, iterations = erosion_iterations)
+        self.action_sequence.append(self.erode)
+        total_erosions += erosion_iterations
+        if self.help:
+            print('Total number of erosions =', total_erosions)
+        return eroded, total_erosions
 
     def measure(self, hsv_filtered_image):
         '''
@@ -226,7 +237,7 @@ class Caliper():
         total_dilations = 0
         total_erosions = 0
         #dilation_iterations = self.parameter_values["dilation_iterations"]
-        erosion_iterations = self.parameter_values["erosion_iterations"]
+        # erosion_iterations = self.parameter_values["erosion_iterations"]
 
         # Instructions (part 2)
         if self.help:
@@ -263,17 +274,19 @@ class Caliper():
             
             # dilate
             if k & 0xFF == ord(self.dilate):
-                dilated = self.dilate_image(edged, total_dilations)
+                dilated, total_dilations = self.dilate_image(edged, total_dilations)
                 gray = dilated.copy()
 
             # erode 
             if k & 0xFF == ord(self.erode):
-                eroded = cv2.erode(dilated, kernel, iterations = erosion_iterations)
-                self.action_sequence.append(self.erode)
-                total_erosions += erosion_iterations
+                eroded, total_erosions = self.erode_image(dilated, total_erosions)
                 gray = eroded.copy()
-                if self.help:
-                    print('Total number of erosions =', total_erosions)
+                # eroded = cv2.erode(dilated, kernel, iterations = erosion_iterations)
+                # self.action_sequence.append(self.erode)
+                # total_erosions += erosion_iterations
+                # gray = eroded.copy()
+                # if self.help:
+                #     print('Total number of erosions =', total_erosions)
             
             # get contours
             if k & 0xFF == ord(self.get_contours):

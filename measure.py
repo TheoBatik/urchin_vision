@@ -8,9 +8,14 @@ import argparse
 
 args = {"image":'example2', "width":5}
 
+
+
 c = Caliper(args["image"], args["width"], help = True)
 print(c.image_folder, c.image_name)
 image = c.img
-masked = c.hsv_filter(image, auto=True)
+
+
+auto = True
+masked = c.hsv_filter(image, auto=auto)
 image_result = c.measure(masked)
 c.output()
