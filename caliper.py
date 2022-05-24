@@ -308,6 +308,18 @@ class Caliper():
         return img_result
 
 
+    def update_averages(self):
+        self.average_smaller, self.average_larger = self.tuple_average(self.results)
+        self.average = self.average_overall(self.results)
+        self.number_of_urchins = len(self.results) - 1
+
+    def update_measurement_parameters(self, area_min_coeff, area_min_power, canny_min, canny_max):
+        self.parameter_values['Minimum contour area: coefficient'] = area_min_coeff
+        self.parameter_values['Minimum contour area: power'] = area_min_power
+        self.parameter_values['Canny value: min'] = canny_min
+        self.parameter_values['Canny value: max'] = canny_max
+        self.parameter_values['Action sequence'] = self.action_sequence
+
     def measure(self, hsv_filtered_image, auto=False):
         '''
         Initialises a control panel for the urchin diameter measurment:
@@ -409,55 +421,7 @@ class Caliper():
                 
                     img_result = self.get_midpoints_from_box(img_result, tl, tr, bl, br, ref_object_measured)
 
-                    # # compute the midpoint between the top-left aqnd top-right coordinates
-                    # (tltrX, tltrY) = self.midpoint(tl, tr)
-                    # (blbrX, blbrY) = self.midpoint(bl, br)
-                
-                    # # compute the midpoint between the top-right and bottom-right
-                    # (tlblX, tlblY) = self.midpoint(tl, bl)
-                    # (trbrX, trbrY) = self.midpoint(tr, br)
-                    
-                    # # draw the midpoints on the image
-                    # cv2.circle(img_result, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
-                    # cv2.circle(img_result, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
-                    # cv2.circle(img_result, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
-                    # cv2.circle(img_result, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
-                    
-                    # # draw lines between the midpoints
-                    # cv2.line(img_result, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)), (255, 0, 255), 2)
-                    # cv2.line(img_result, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)), (255, 0, 255), 2)
-                    
-                    # # compute the Euclidean distance between the midpoints, in pixels
-                    # dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
-                    # dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
-
-                    # # If the pixels-per-cm ratio has not been pre-calibrated/inputted, then infer it from the reference object length
-                    # if self.pixels_per_cm is None and not ref_object_measured:
-                    #     setattr(self, 'pixels_per_cm', dB / self.reference_object_length)
-                    #     # label reference object on image
-                    #     ref_object_measured = True
-                    #     centreX = int( (trbrX + tlblX)/2 ) - 170
-                    #     centreY = int( (trbrY + tlblY)/2 )
-                    #     cv2.putText(img_result, "REF",
-                    #         (centreX, centreY), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
-                    
-                    # # compute the diameter, in cm
-                    # dimA = dA / self.pixels_per_cm
-                    # dimB = dB / self.pixels_per_cm
-                    
-                    # # update results
-                    # self.results.append( (dimA, dimB) )
-                    
-                    # # draw the diameters onto the image
-                    # cv2.putText(img_result, "{:.1f}cm".format(dimA),
-                    #         (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
-                    # cv2.putText(img_result, "{:.1f}cm".format(dimB),
-                    #         (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
-
-                # compute averages
-                self.average_smaller, self.average_larger = self.tuple_average(self.results)
-                self.average = self.average_overall(self.results)
-                self.number_of_urchins = len(self.results) - 1
+                self.update_averages()
                 
                 if self.help:
                     print('Contours: \t total = ', len(cnts[0]), 'Large enough = ', count_in, ' too small = ', count_out)   
@@ -475,12 +439,7 @@ class Caliper():
         
         cv2.destroyAllWindows()
 
-        # update parameter values
-        self.parameter_values['Minimum contour area: coefficient'] = area_min_coeff
-        self.parameter_values['Minimum contour area: power'] = area_min_power
-        self.parameter_values['Canny value: min'] = canny_min
-        self.parameter_values['Canny value: max'] = canny_max
-        self.parameter_values['Action sequence'] = self.action_sequence
+        self.update_measurement_parameters(area_min_coeff, area_min_power, canny_min, canny_max)
 
         return img_result
 
@@ -524,8 +483,8 @@ class Caliper():
         return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
 
     def tuple_average(self, results):
-
-        ''' Returns averages based on the largest/smallest value within each tuple, given a list of tuples.'''   
+        ''' Returns averages based on the largest/smallest value within each tuple, 
+        given a list of tuples.'''   
 
         n = len(results) - 1 # remove reference object from total urchins
         sum_small = 0
