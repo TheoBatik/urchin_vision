@@ -206,6 +206,13 @@ class Caliper():
             print('Total number of erosions =', total_erosions)
         return eroded, total_erosions
 
+    def get_measurement_trackbar_values(self):
+        area_min_power = cv2.getTrackbarPos("m_area: power", self.trackbar_name_2)
+        area_min_coeff = cv2.getTrackbarPos("m_area: coeff", self.trackbar_name_2)
+        canny_min = cv2.getTrackbarPos("c_min", self.trackbar_name_2)
+        canny_max = cv2.getTrackbarPos("c_max", self.trackbar_name_2)
+        return area_min_power, area_min_coeff, canny_min, canny_max
+
     def measure(self, hsv_filtered_image):
         '''
         Initialises a control panel for the urchin diameter measurment:
@@ -252,13 +259,10 @@ class Caliper():
             
             # try: 
                 
-            # get trackbar_2 values
-            area_min_power = cv2.getTrackbarPos("m_area: power", self.trackbar_name_2)
-            area_min_coeff = cv2.getTrackbarPos("m_area: coeff", self.trackbar_name_2)
-            canny_min = cv2.getTrackbarPos("c_min", self.trackbar_name_2)
-            canny_max = cv2.getTrackbarPos("c_max", self.trackbar_name_2)
+            # get trackbar values
+            area_min_power, area_min_coeff, canny_min, canny_max = self.get_measurement_trackbar_values()
 
-            # prepare edge-map
+            # prepare Canny edge-map
             edged = cv2.Canny(gray, canny_min, canny_max)
 
             # define key press
@@ -281,12 +285,6 @@ class Caliper():
             if k & 0xFF == ord(self.erode):
                 eroded, total_erosions = self.erode_image(dilated, total_erosions)
                 gray = eroded.copy()
-                # eroded = cv2.erode(dilated, kernel, iterations = erosion_iterations)
-                # self.action_sequence.append(self.erode)
-                # total_erosions += erosion_iterations
-                # gray = eroded.copy()
-                # if self.help:
-                #     print('Total number of erosions =', total_erosions)
             
             # get contours
             if k & 0xFF == ord(self.get_contours):
