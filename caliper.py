@@ -184,6 +184,17 @@ class Caliper():
         self.action_sequence.append(self.blur)
         return gray_blur
 
+    def dilate_image(self, canny_image, total_dilations):
+        dim_kernel_dilate_erode = self.parameter_values["dim_kernel_dilate_erode"]
+        kernel = np.ones( dim_kernel_dilate_erode, np.uint8)
+        dilation_iterations = self.parameter_values["dilation_iterations"]
+        dilated = cv2.dilate(canny_image, kernel, iterations = dilation_iterations)
+        self.action_sequence.append(self.dilate)
+        total_dilations += dilation_iterations
+        if self.help:
+            print('Total number of dilations =', total_dilations)
+        return dilated
+
     def measure(self, hsv_filtered_image):
         '''
         Initialises a control panel for the urchin diameter measurment:
@@ -214,7 +225,7 @@ class Caliper():
         # total number of dilations/erosions 
         total_dilations = 0
         total_erosions = 0
-        dilation_iterations = self.parameter_values["dilation_iterations"]
+        #dilation_iterations = self.parameter_values["dilation_iterations"]
         erosion_iterations = self.parameter_values["erosion_iterations"]
 
         # Instructions (part 2)
@@ -252,12 +263,8 @@ class Caliper():
             
             # dilate
             if k & 0xFF == ord(self.dilate):
-                dilated = cv2.dilate(edged, kernel, iterations = dilation_iterations)
-                self.action_sequence.append(self.dilate)
-                total_dilations += dilation_iterations
+                dilated = self.dilate_image(edged, total_dilations)
                 gray = dilated.copy()
-                if self.help:
-                    print('Total number of dilations =', total_dilations)
 
             # erode 
             if k & 0xFF == ord(self.erode):
