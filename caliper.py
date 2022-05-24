@@ -213,6 +213,17 @@ class Caliper():
         canny_max = cv2.getTrackbarPos("c_max", self.trackbar_name_2)
         return area_min_power, area_min_coeff, canny_min, canny_max
 
+    def get_contours_from_eroded_image(self, eroded_image):
+        cnts, _ = cv2.findContours(eroded_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        self.action_sequence.append(self.get_contours)
+        # sort the contours from left-to-right
+        cnts = contours.sort_contours(cnts, method='left-to-right')
+        if self.help:
+            print('Fetching contours...')
+            print('\t=> ', len(cnts[0])) 
+        return cnts
+
+
     def measure(self, hsv_filtered_image):
         '''
         Initialises a control panel for the urchin diameter measurment:
@@ -288,17 +299,17 @@ class Caliper():
             
             # get contours
             if k & 0xFF == ord(self.get_contours):
-                            
-                # get contours from the eroded image
-                cnts, _ = cv2.findContours(eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                self.action_sequence.append(self.get_contours)
+                cnts = self.get_contours_from_eroded_image(eroded)           
+                # # get contours from the eroded image
+                # cnts, _ = cv2.findContours(eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                # self.action_sequence.append(self.get_contours)
 
-                # sort the contours from left-to-right
-                cnts = contours.sort_contours(cnts, method='left-to-right')
+                # # sort the contours from left-to-right
+                # cnts = contours.sort_contours(cnts, method='left-to-right')
                 
-                if self.help:
-                    print('Fetching contours...')
-                    print('\t=> ', len(cnts[0]))     
+                # if self.help:
+                #     print('Fetching contours...')
+                #     print('\t=> ', len(cnts[0]))     
             
             # fetch the bounding boxes and take measurement
             if k & 0xFF == ord(self.take_measurement):
