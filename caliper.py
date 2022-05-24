@@ -78,70 +78,95 @@ class Caliper():
 
     # methods
 
-    def hsv_filter(self, image):
+    def update_hsv_parameters(self, hsv_lower, hsv_upper):
 
-        '''Initialise 'contol panel' for HSV filter, and return HSV-'masked' image.'''
-        
-        # setup HSV filter trackbars
-        cv2.namedWindow(self.trackbar_name_1)
-        cv2.resizeWindow(self.trackbar_name_1,640,240)
-        cv2.createTrackbar("Hue Min",self.trackbar_name_1, self.hue_min_def, 180, self.empty)
-        cv2.createTrackbar("Hue Max",self.trackbar_name_1, self.hue_max_def, 180,self.empty)
-        cv2.createTrackbar("Sat Min",self.trackbar_name_1, self.sat_min_def ,255,self.empty)
-        cv2.createTrackbar("Sat Max",self.trackbar_name_1, self.sat_max_def ,255,self.empty)
-        cv2.createTrackbar("Val Min",self.trackbar_name_1, self.val_min_def ,255,self.empty)
-        cv2.createTrackbar("Val Max",self.trackbar_name_1, self.val_max_def ,255,self.empty)
+        self.parameter_values['hue_min'] = hsv_lower[0]
+        self.parameter_values['hue_max'] = hsv_upper[0]
+        self.parameter_values['saturation_min'] = hsv_lower[1]
+        self.parameter_values['saturation_max'] = hsv_upper[1]
+        self.parameter_values['value_min'] = hsv_lower[2]
+        self.parameter_values['value_max'] = hsv_upper[2]
 
-        # instructions (part 1)
-        if self.help:
-            print('\nInstructions:')
-            print('\tUse the trackbars to adjust the HSV filter')
-            print('\t\'{}\' to quit'.format(self.quit))
+
+    def get_masked_image(self, image, hsv_min_array, hsv_max_array):
             
-
-        while True:
-            
-            # define key press as
-            k = cv2.waitKey(1)
-
-            # press 'n' to break loop
-            if k & 0xFF == ord(self.quit):
-                break
+            '''Returns HSV filtered image ('masked') given arrays of the HSV lower & upper bounds, 
+            and updates the HSV parameter attributes'''
             
             # convert image to HSV
             imgHSV = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-            
-            # get trackbar values
-            h_min = cv2.getTrackbarPos("Hue Min",self.trackbar_name_1)
-            h_max = cv2.getTrackbarPos("Hue Max", self.trackbar_name_1)
-            s_min = cv2.getTrackbarPos("Sat Min", self.trackbar_name_1)
-            s_max = cv2.getTrackbarPos("Sat Max", self.trackbar_name_1)
-            v_min = cv2.getTrackbarPos("Val Min", self.trackbar_name_1)
-            v_max = cv2.getTrackbarPos("Val Max", self.trackbar_name_1)
-            
-            # define HSV lower/upper bounds 
-            lower = np.array([h_min,s_min,v_min])
-            upper = np.array([h_max,s_max,v_max])
-            
-            # create and apply bitwise mask
-            mask = cv2.inRange(imgHSV,lower,upper)
+            # create bitwise mask
+            mask = cv2.inRange(imgHSV, hsv_min_array, hsv_max_array)
+            # apply mask
             masked = cv2.bitwise_and(image,image,mask=mask)
-            
-            # scale and display filtered image
-            masked_scaled = self.stack_images(0.2, ([ masked ] ))
-            cv2.imshow("Filter by HSV", masked_scaled)
+            self.update_hsv_parameters(hsv_min_array, hsv_max_array)
 
-        cv2.destroyAllWindows()
+            return masked
 
-        # update parameter values
-        self.parameter_values['hue_min'] = h_min
-        self.parameter_values['hue_max'] = h_max
-        self.parameter_values['saturation_min'] = s_min
-        self.parameter_values['saturation_max'] = s_max
-        self.parameter_values['value_min'] = v_min
-        self.parameter_values['value_max'] = v_max
 
-        return masked
+    def hsv_filter(self, image, auto=True):
+
+        '''Returns HSV filtered image ('masked'). 
+
+        If auto: HSV lower & upper bounds are pulled from class attributes,
+        Else: taken from trackbar values.'''
+
+        if auto:
+
+            hsv_lower = np.array([self.hue_min_def, self.sat_min_def, self.val_min_def])
+            hsv_upper = np.array([self.hue_max_def, self.sat_max_def, self.val_max_def]) 
+            masked = self.get_masked_image(image, hsv_lower, hsv_upper)
+            self.update_hsv_parameters(hsv_lower, hsv_upper)
+
+            return masked
+
+        else:
+
+            # setup HSV filter trackbars
+            cv2.namedWindow(self.trackbar_name_1)
+            cv2.resizeWindow(self.trackbar_name_1,640,240)
+            cv2.createTrackbar("Hue Min",self.trackbar_name_1, self.hue_min_def, 180, self.empty)
+            cv2.createTrackbar("Hue Max",self.trackbar_name_1, self.hue_max_def, 180,self.empty)
+            cv2.createTrackbar("Sat Min",self.trackbar_name_1, self.sat_min_def ,255,self.empty)
+            cv2.createTrackbar("Sat Max",self.trackbar_name_1, self.sat_max_def ,255,self.empty)
+            cv2.createTrackbar("Val Min",self.trackbar_name_1, self.val_min_def ,255,self.empty)
+            cv2.createTrackbar("Val Max",self.trackbar_name_1, self.val_max_def ,255,self.empty)
+
+            # instructions (part 1)
+            if self.help:
+                print('\nInstructions:')
+                print('\tUse the trackbars to adjust the HSV filter')
+                print('\t\'{}\' to quit'.format(self.quit))
+
+            while True:
+                
+                # define key press as
+                k = cv2.waitKey(1)
+
+                # press 'n' to break loop
+                if k & 0xFF == ord(self.quit):
+                    break
+                        
+                # get trackbar values
+                h_min = cv2.getTrackbarPos("Hue Min",self.trackbar_name_1)
+                h_max = cv2.getTrackbarPos("Hue Max", self.trackbar_name_1)
+                s_min = cv2.getTrackbarPos("Sat Min", self.trackbar_name_1)
+                s_max = cv2.getTrackbarPos("Sat Max", self.trackbar_name_1)
+                v_min = cv2.getTrackbarPos("Val Min", self.trackbar_name_1)
+                v_max = cv2.getTrackbarPos("Val Max", self.trackbar_name_1)
+
+                # define HSV lower/upper bounds 
+                hsv_lower = np.array([h_min,s_min,v_min])
+                hsv_upper = np.array([h_max,s_max,v_max])
+                masked = self.get_masked_image(image, hsv_lower, hsv_upper)
+                
+                # scale and display masked image
+                masked_scaled = self.stack_images(0.2, ([ masked ] ))
+                cv2.imshow("Filter by HSV", masked_scaled)
+
+            cv2.destroyAllWindows()
+
+            return masked
 
     def measure(self, hsv_filtered_image):
         '''
