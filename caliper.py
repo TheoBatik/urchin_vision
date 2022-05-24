@@ -223,15 +223,19 @@ class Caliper():
             print('\t=> ', len(cnts[0])) 
         return cnts
 
-    def unpack_bounding_box(self, c, img_result):
-        
-        '''Computes the minimum area rectangle of contour, c,
+    def unpack_bounding_box(self, contour, img_result):
+        '''
+        Computes the minimum area rectangle of input contour
         and draws it onto the image result.
         
-        Returns: unpacked vertices, and image result'''
-        
+        Returns: unpacked vertices, and image result
+        '''
+
+        if self.help:
+            print('Fetching bounding boxes...')
+
         # compute the rotated bounding box of the contour
-        box = cv2.minAreaRect(c)
+        box = cv2.minAreaRect(contour)
         box = cv2.cv.BoxPoints(box) if imutils.is_cv2() else cv2.boxPoints(box)
         box = np.array(box, dtype="int")
 
@@ -241,17 +245,70 @@ class Caliper():
 
         # draw
         cv2.drawContours(img_result, [box.astype("int")], -1, (255, 40, 0), 2)
-        cv2.drawContours(img_result, [c], 0, (0, 255, 0), 5)
-    
-        # cv2.drawContours(img_result, boxes, -1, (0, 255, 0), q2)
-        # cv2.drawContours(img_result, cnts_big, -1, (0, 255, 0), 5)
+        cv2.drawContours(img_result, [contour], 0, (0, 255, 0), 5)
         
         # unpack the ordered bounding box
         (tl, tr, br, bl) = box
+
         return tl, tr, br, bl, img_result
 
 
-    def measure(self, hsv_filtered_image):
+    def get_midpoints_from_box(self, img_result, tl, tr, bl, br, ref_object_measured):
+        '''
+        Computes the midpoints given the vertices of a box;
+        draws midpoints to image;
+        computes the distance between opposite midpoints in pixels;
+        converts this to a distance in cm using pixel_per_cm ratio.
+        '''
+         # compute the midpoint between the top-left aqnd top-right coordinates
+        (tltrX, tltrY) = self.midpoint(tl, tr)
+        (blbrX, blbrY) = self.midpoint(bl, br)
+    
+        # compute the midpoint between the top-right and bottom-right
+        (tlblX, tlblY) = self.midpoint(tl, bl)
+        (trbrX, trbrY) = self.midpoint(tr, br)
+        
+        # draw the midpoints on the image
+        cv2.circle(img_result, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
+        cv2.circle(img_result, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
+        cv2.circle(img_result, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
+        cv2.circle(img_result, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
+        
+        # draw lines between the midpoints
+        cv2.line(img_result, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)), (255, 0, 255), 2)
+        cv2.line(img_result, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)), (255, 0, 255), 2)
+        
+        # compute the Euclidean distance between the midpoints, in pixels
+        dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
+        dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
+
+        # If the pixels-per-cm ratio has not been pre-calibrated/inputted, then infer it from the reference object length
+        if self.pixels_per_cm is None and not ref_object_measured:
+            setattr(self, 'pixels_per_cm', dB / self.reference_object_length)
+            # label reference object on image
+            ref_object_measured = True
+            centreX = int( (trbrX + tlblX)/2 ) - 170
+            centreY = int( (trbrY + tlblY)/2 )
+            cv2.putText(img_result, "REF",
+                (centreX, centreY), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
+        
+        # compute the diameter, in cm
+        dimA = dA / self.pixels_per_cm
+        dimB = dB / self.pixels_per_cm
+        
+        # draw the diameters onto the image
+        cv2.putText(img_result, "{:.1f}cm".format(dimA),
+                (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+        cv2.putText(img_result, "{:.1f}cm".format(dimB),
+                (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+
+        # update results
+        self.results.append( (dimA, dimB) )
+
+        return img_result
+
+
+    def measure(self, hsv_filtered_image, auto=False):
         '''
         Initialises a control panel for the urchin diameter measurment:
         enables implemention of dilations, erosions, and blurs, contour detection,
@@ -288,7 +345,9 @@ class Caliper():
         eroded, total_erosions = self.erode_image(dilated, total_erosions)
 
         self.create_measurement_trackbars()
-       
+        
+        if auto:
+            pass
 
         while True:
             
@@ -328,17 +387,16 @@ class Caliper():
             # fetch the bounding boxes and take measurement
             if k & 0xFF == ord(self.take_measurement):
                 
-                # setattr(self, 'img_result', self.img.copy())
                 img_result = self.img
 
-                # define counters for contours: _in => sufficiently large; _out => too small
+                # set contours counters: _in => sufficiently large; _out => too small
                 count_in = 0
                 count_out = 0           
                 
                 # loop through the contours 
-                for i, c in enumerate(cnts[0]):
+                for c in cnts[0]:
                     
-                    # flag reference object
+                    # flag for reference object
                     ref_object_measured = False
 
                     # if the contour is not sufficiently large, ignore it
@@ -349,50 +407,52 @@ class Caliper():
 
                     tl, tr, br, bl, img_result = self.unpack_bounding_box(c, img_result)
                 
-                    # compute the midpoint between the top-left aqnd top-right coordinates
-                    (tltrX, tltrY) = self.midpoint(tl, tr)
-                    (blbrX, blbrY) = self.midpoint(bl, br)
-                
-                    # compute the midpoint between the top-right and bottom-right
-                    (tlblX, tlblY) = self.midpoint(tl, bl)
-                    (trbrX, trbrY) = self.midpoint(tr, br)
-                    
-                        # draw the midpoints on the image
-                    cv2.circle(img_result, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
-                    cv2.circle(img_result, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
-                    cv2.circle(img_result, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
-                    cv2.circle(img_result, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
-                    
-                    # draw lines between the midpoints
-                    cv2.line(img_result, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)), (255, 0, 255), 2)
-                    cv2.line(img_result, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)), (255, 0, 255), 2)
-                    
-                    # compute the Euclidean distance between the midpoints, in pixels
-                    dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
-                    dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
+                    img_result = self.get_midpoints_from_box(img_result, tl, tr, bl, br, ref_object_measured)
 
-                    # If the pixels-per-cm ratio has not been pre-calibrated/inputted, then infer it from the reference object length
-                    if self.pixels_per_cm is None and not ref_object_measured:
-                        setattr(self, 'pixels_per_cm', dB / self.reference_object_length)
-                        # label reference object on image
-                        ref_object_measured = True
-                        centreX = int( (trbrX + tlblX)/2 ) - 170
-                        centreY = int( (trbrY + tlblY)/2 )
-                        cv2.putText(img_result, "REF",
-                            (centreX, centreY), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
+                    # # compute the midpoint between the top-left aqnd top-right coordinates
+                    # (tltrX, tltrY) = self.midpoint(tl, tr)
+                    # (blbrX, blbrY) = self.midpoint(bl, br)
+                
+                    # # compute the midpoint between the top-right and bottom-right
+                    # (tlblX, tlblY) = self.midpoint(tl, bl)
+                    # (trbrX, trbrY) = self.midpoint(tr, br)
                     
-                    # compute the diameter, in cm
-                    dimA = dA / self.pixels_per_cm
-                    dimB = dB / self.pixels_per_cm
+                    # # draw the midpoints on the image
+                    # cv2.circle(img_result, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
+                    # cv2.circle(img_result, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
+                    # cv2.circle(img_result, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
+                    # cv2.circle(img_result, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
                     
-                    # update results
-                    self.results.append( (dimA, dimB) )
+                    # # draw lines between the midpoints
+                    # cv2.line(img_result, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)), (255, 0, 255), 2)
+                    # cv2.line(img_result, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)), (255, 0, 255), 2)
                     
-                    # draw the diameters onto the image
-                    cv2.putText(img_result, "{:.1f}cm".format(dimA),
-                            (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
-                    cv2.putText(img_result, "{:.1f}cm".format(dimB),
-                            (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+                    # # compute the Euclidean distance between the midpoints, in pixels
+                    # dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
+                    # dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
+
+                    # # If the pixels-per-cm ratio has not been pre-calibrated/inputted, then infer it from the reference object length
+                    # if self.pixels_per_cm is None and not ref_object_measured:
+                    #     setattr(self, 'pixels_per_cm', dB / self.reference_object_length)
+                    #     # label reference object on image
+                    #     ref_object_measured = True
+                    #     centreX = int( (trbrX + tlblX)/2 ) - 170
+                    #     centreY = int( (trbrY + tlblY)/2 )
+                    #     cv2.putText(img_result, "REF",
+                    #         (centreX, centreY), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
+                    
+                    # # compute the diameter, in cm
+                    # dimA = dA / self.pixels_per_cm
+                    # dimB = dB / self.pixels_per_cm
+                    
+                    # # update results
+                    # self.results.append( (dimA, dimB) )
+                    
+                    # # draw the diameters onto the image
+                    # cv2.putText(img_result, "{:.1f}cm".format(dimA),
+                    #         (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+                    # cv2.putText(img_result, "{:.1f}cm".format(dimB),
+                    #         (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
 
                 # compute averages
                 self.average_smaller, self.average_larger = self.tuple_average(self.results)
@@ -400,8 +460,7 @@ class Caliper():
                 self.number_of_urchins = len(self.results) - 1
                 
                 if self.help:
-                    print('Fetching bounding boxes...')
-                    print('Contours: \n\t total = ', len(cnts[0]), 'Large enough = ', count_in, ' too small = ', count_out)   
+                    print('Contours: \t total = ', len(cnts[0]), 'Large enough = ', count_in, ' too small = ', count_out)   
                     print('\t=> done.')
             
             img_result_scaled = self.stack_images(0.2, ([ img_result ] ))
