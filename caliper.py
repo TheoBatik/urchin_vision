@@ -1,4 +1,5 @@
 # imports
+from pyparsing import opAssoc
 from scipy.spatial import distance as dist
 from imutils import perspective
 from imutils import contours
@@ -11,10 +12,17 @@ from os import getcwd
 from datetime import date, datetime
 
 class Caliper():
-
-    '''class for measuring the diameter of multiple urchins given input image with reference object of known length/width.'''
+    '''
+    For measuring the length & width of multiple, similar sized objects (e.g. sea urchins),
+    given an image with a reference object placed in the top-left.
     
-    def __init__(self, image_name, reference_object_length = None, pixels_per_cm = None, help = False):
+    **kwargs
+    If known, pixels_per_cm can be used instead of reference_object_length.
+    help=True for info to be printed in terminal.
+    auto=True for no user interaction.
+    '''
+    
+    def __init__(self, image_name, image_format, reference_object_length=None, pixels_per_cm=None, help=False, auto=True):
 
         # calibration
         self.reference_object_length = reference_object_length
@@ -22,13 +30,14 @@ class Caliper():
 
         # load image
         self.image_name = image_name
-        self.image_format = '.jpg'
-        self.image_folder = 'images'
+        self.image_format = '.' + image_format
+        self.image_folder = None
         self.path_to_image = join(self.image_folder, self.image_name + self.image_format)
         self.img = cv2.imread(self.path_to_image)
 
-        # options
+        # modes
         self.help = help
+        self.auto = auto
 
         # parameters
         self.action_sequence = []
@@ -87,7 +96,6 @@ class Caliper():
         self.parameter_values['value_min'] = hsv_lower[2]
         self.parameter_values['value_max'] = hsv_upper[2]
 
-
     def get_masked_image(self, image, hsv_min_array, hsv_max_array):
             
             '''Returns HSV filtered image ('masked') given arrays of the HSV lower & upper bounds, 
@@ -103,14 +111,13 @@ class Caliper():
 
             return masked
 
-
-    def hsv_filter(self, image, auto=True):
+    def hsv_filter(self, image):
 
         '''Returns HSV filtered image ('masked'). 
 
         If auto: HSV lower & upper bounds are pulled from class attributes,
         Else: taken from trackbar values.'''
-
+        auto = self.auto 
         if auto:
 
             hsv_lower = np.array([self.hue_min_def, self.sat_min_def, self.val_min_def])
@@ -168,7 +175,6 @@ class Caliper():
 
             return masked
 
-
     def create_measurement_trackbars(self):
         cv2.namedWindow(self.trackbar_name_2)
         cv2.resizeWindow(self.trackbar_name_2,700,170)
@@ -181,7 +187,8 @@ class Caliper():
         '''Returns blured image. Input must be grayscale.'''
         dim_kernel_blur = (7, 7) #self.parameter_values["dim_kernel_blur"]
         gray_blur = cv2.GaussianBlur(gray, dim_kernel_blur, 0)
-        self.action_sequence.append(self.blur)
+        if not self.auto:
+            self.action_sequence.append(self.blur)
         return gray_blur
 
     def dilate_image(self, canny_image, total_dilations):
@@ -189,10 +196,11 @@ class Caliper():
         kernel = np.ones( dim_kernel_dilate_erode, np.uint8)
         dilation_iterations = self.parameter_values["dilation_iterations"]
         dilated = cv2.dilate(canny_image, kernel, iterations = dilation_iterations)
-        self.action_sequence.append(self.dilate)
-        total_dilations += dilation_iterations
-        if self.help:
-            print('Total number of dilations =', total_dilations)
+        if not self.auto:
+            total_dilations += dilation_iterations
+            self.action_sequence.append(self.dilate)
+            if self.help:
+                print('Total number of dilations =', total_dilations)
         return dilated, total_dilations
 
     def erode_image(self, dilated_image, total_erosions):
@@ -200,10 +208,11 @@ class Caliper():
         kernel = np.ones( dim_kernel_dilate_erode, np.uint8)
         erosion_iterations = self.parameter_values["erosion_iterations"]
         eroded = cv2.erode(dilated_image, kernel, iterations = erosion_iterations)
-        self.action_sequence.append(self.erode)
-        total_erosions += erosion_iterations
-        if self.help:
-            print('Total number of erosions =', total_erosions)
+        if not self.auto:
+            total_erosions += erosion_iterations
+            self.action_sequence.append(self.erode)
+            if self.help:
+                print('Total number of erosions =', total_erosions)
         return eroded, total_erosions
 
     def get_measurement_trackbar_values(self):
@@ -219,8 +228,8 @@ class Caliper():
         # sort the contours from left-to-right
         cnts = contours.sort_contours(cnts, method='left-to-right')
         if self.help:
-            print('Fetching contours...')
-            print('\t=> ', len(cnts[0])) 
+            length_cnts = len(cnts[0])
+            print(f'   Contours fetched: {length_cnts} ')
         return cnts
 
     def unpack_bounding_box(self, contour, img_result):
@@ -230,9 +239,6 @@ class Caliper():
         
         Returns: unpacked vertices, and image result
         '''
-
-        if self.help:
-            print('Fetching bounding boxes...')
 
         # compute the rotated bounding box of the contour
         box = cv2.minAreaRect(contour)
@@ -251,7 +257,6 @@ class Caliper():
         (tl, tr, br, bl) = box
 
         return tl, tr, br, bl, img_result
-
 
     def get_midpoints_from_box(self, img_result, tl, tr, bl, br, ref_object_measured):
         '''
@@ -297,16 +302,15 @@ class Caliper():
         dimB = dB / self.pixels_per_cm
         
         # draw the diameters onto the image
-        cv2.putText(img_result, "{:.1f}cm".format(dimA),
-                (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
         cv2.putText(img_result, "{:.1f}cm".format(dimB),
+                (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+        cv2.putText(img_result, "{:.1f}cm".format(dimA),
                 (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
 
         # update results
         self.results.append( (dimA, dimB) )
 
         return img_result
-
 
     def update_averages(self):
         self.average_smaller, self.average_larger = self.tuple_average(self.results)
@@ -320,91 +324,81 @@ class Caliper():
         self.parameter_values['Canny value: max'] = canny_max
         self.parameter_values['Action sequence'] = self.action_sequence
 
-    def measure(self, hsv_filtered_image, auto=False):
+    def choose_action(self, image, action):
         '''
-        Initialises a control panel for the urchin diameter measurment:
-        enables implemention of dilations, erosions, and blurs, contour detection,
-        minimum contour area control, and fetching of minimum area bounding rectangles.
+        Applies the morphological operation, corresponding to the given action key,
+        to the input image and returns the result.
+        '''
+        total_dilations = 0
+        total_erosions = 0
+        blur = self.blur
+        erode = self.erode
+        dilate = self.dilate
+        if action == blur:
+            img_result = self.blur_image(image)
+        elif action == dilate:
+            img_result, _ = self.dilate_image(image, total_dilations)
+        elif action == erode:
+            img_result, _ = self.erode_image(image, total_erosions)
+        else:
+            print(f'The action given does not match {blur}, {erode}, or {dilate}. Please provide a valid action key.')
+        return img_result
+
+    def help_contour_count(self, count_in, count_out):
+        print(f'\tSufficiently large => {count_in}\n\tToo small => {count_out}') 
+        print('   Bounding boxes drawn.') 
+        print('   Midpoints computed.')
+        print('Measurment complete.')
+    
+    def measure(self, hsv_filtered_image):
+        '''
+        Implements:
+        blurs, dilation, erosions, Canny edge detection, and contour extration;
+        computes minimum area bounding boxes, and the length/width of the detected objects. 
         
-        Writes: measurements/parameters to .csv file
+        Mode:
+        auto=False enables user to choose the implementations in response to images displayed,
+        whereas auto-mode implements the morphorlogical operations above, given that the Caliper object's
+        action_sequence is not None.
 
         Returns:
-        image result with contours, bounding boxes and measured diameters drawn on.'''
+        image result with contours, bounding boxes and measured lengths/widths drawn on.
 
-        # Instructions (part 2)
-        if self.help:
-            print('\tUse the trackbars to adjust the Canny values and minimum area')
-            print('\t\'{}\' to blur'.format(self.blur))
-            print('\t\'{}\' to dilate'.format(self.dilate))
-            print('\t\'{}\' to erode'.format(self.erode))
-            print('\t\'{}\' to fetch the contours'.format(self.get_contours))
-            print('\t\'{}\' to display measurements'.format(self.take_measurement))
-
-        # convert to grayscale and blur
+        Saves: 
+        measurements and parameters as class attributes,
+        '''
+        
+        # convert hsv_filtered_image to grayscale
         gray = cv2.cvtColor(hsv_filtered_image, cv2.COLOR_BGR2GRAY)
-        gray = self.blur_image(gray)
-
-        # extract edges
-        edged = cv2.Canny(gray, 50, 100)
-        img_result = self.img
-
+        
         # total number of dilations/erosions (counters)
         total_dilations = 0
         total_erosions = 0
 
-        # dilate and erode
-        dilated, total_dilations = self.dilate_image(edged, total_dilations)
-        eroded, total_erosions = self.erode_image(dilated, total_erosions)
+        # mode
+        auto = self.auto
 
-        self.create_measurement_trackbars()
-        
         if auto:
-            pass
-
-        while True:
-            
-            # try: 
+            action_sequence = self.action_sequence
+            if bool(action_sequence):
+                if self.help:
+                    print('Auto-measurement triggered...\n   Action sequence:', action_sequence)
+                for action in action_sequence:
+                    gray = self.choose_action(gray, action)
                 
-            # get trackbar values
-            area_min_power, area_min_coeff, canny_min, canny_max = self.get_measurement_trackbar_values()
-
-            # prepare Canny edge-map
-            edged = cv2.Canny(gray, canny_min, canny_max)
-
-            # define key press
-            k = cv2.waitKey(1)
-            
-            # quit loop
-            if k & 0xFF == ord(self.quit):
-                break
-            
-            # blur
-            if k & 0xFF == ord(self.blur):
-                gray = self.blur_image(gray)
-            
-            # dilate
-            if k & 0xFF == ord(self.dilate):
-                dilated, total_dilations = self.dilate_image(edged, total_dilations)
-                gray = dilated.copy()
-
-            # erode 
-            if k & 0xFF == ord(self.erode):
-                eroded, total_erosions = self.erode_image(dilated, total_erosions)
-                gray = eroded.copy()
-            
-            # get contours
-            if k & 0xFF == ord(self.get_contours):
-                cnts = self.get_contours_from_eroded_image(eroded)   
-            
-            # fetch the bounding boxes and take measurement
-            if k & 0xFF == ord(self.take_measurement):
+                cnts = self.get_contours_from_eroded_image(gray)
                 
-                img_result = self.img
-
                 # set contours counters: _in => sufficiently large; _out => too small
                 count_in = 0
                 count_out = 0           
                 
+                # set the minimum bound on contour area
+                area_min_coeff = self.min_area_coeff_def
+                area_min_power = self.min_area_power_def
+
+                # define image result
+                img_result = self.img
+
                 # loop through the contours 
                 for c in cnts[0]:
                     
@@ -412,7 +406,7 @@ class Caliper():
                     ref_object_measured = False
 
                     # if the contour is not sufficiently large, ignore it
-                    if cv2.contourArea(c) < area_min_coeff*10**area_min_power: #area_min a*10^x
+                    if cv2.contourArea(c) < area_min_coeff*10**area_min_power: # area_min = a*10^x
                         count_out += 1
                         continue
                     count_in += 1
@@ -421,27 +415,119 @@ class Caliper():
                 
                     img_result = self.get_midpoints_from_box(img_result, tl, tr, bl, br, ref_object_measured)
 
+                setattr(self, 'img_result', img_result)
                 self.update_averages()
-                
+
                 if self.help:
-                    print('Contours: \t total = ', len(cnts[0]), 'Large enough = ', count_in, ' too small = ', count_out)   
-                    print('\t=> done.')
-            
-            img_result_scaled = self.stack_images(0.2, ([ img_result ] ))
-            setattr(self, 'img_result', img_result_scaled)
-            cv2.imshow("The measurement", self.img_result)
-            img_stack = self.stack_images(0.1, ([ [hsv_filtered_image, edged], [dilated, eroded] ] ))
-            cv2.imshow("Image stack: TL = filtered by colour; TR = edged (Canny); BL = dilated; BR = eroded ", img_stack)
+                    self.help_contour_count(count_in, count_out)
+
+            else:
+                if self.help:
+                    print('Action sequence missing. Auto-measurement aborted.') 
+        else:
+
+            # Instructions (part 2)
+            if self.help:
+                print('\tUse the trackbars to adjust the Canny values and minimum area')
+                print('\t\'{}\' to blur'.format(self.blur))
+                print('\t\'{}\' to dilate'.format(self.dilate))
+                print('\t\'{}\' to erode'.format(self.erode))
+                print('\t\'{}\' to fetch the contours'.format(self.get_contours))
+                print('\t\'{}\' to display measurements'.format(self.take_measurement))
+
+            # blur
+            gray = self.blur_image(gray)
+
+            # extract edges
+            edged = cv2.Canny(gray, 50, 100)
+            img_result = self.img
+
+            # dilate and erode
+            dilated, total_dilations = self.dilate_image(edged, total_dilations)
+            eroded, total_erosions = self.erode_image(dilated, total_erosions)
+
+            self.create_measurement_trackbars()
+
+            while True:
                 
-            # except Exception:
-            #     print('Error!')
-            #     break
-        
-        cv2.destroyAllWindows()
+                # try: 
+                    
+                # get trackbar values
+                area_min_power, area_min_coeff, canny_min, canny_max = self.get_measurement_trackbar_values()
 
-        self.update_measurement_parameters(area_min_coeff, area_min_power, canny_min, canny_max)
+                # prepare Canny edge-map
+                edged = cv2.Canny(gray, canny_min, canny_max)
 
-        return img_result
+                # define key press
+                k = cv2.waitKey(1)
+                
+                # quit loop
+                if k & 0xFF == ord(self.quit):
+                    break
+                
+                # blur
+                if k & 0xFF == ord(self.blur):
+                    gray = self.blur_image(gray)
+                
+                # dilate
+                if k & 0xFF == ord(self.dilate):
+                    dilated, total_dilations = self.dilate_image(edged, total_dilations)
+                    gray = dilated.copy()
+
+                # erode 
+                if k & 0xFF == ord(self.erode):
+                    eroded, total_erosions = self.erode_image(dilated, total_erosions)
+                    gray = eroded.copy()
+                
+                # get contours
+                if k & 0xFF == ord(self.get_contours):
+                    cnts = self.get_contours_from_eroded_image(eroded)   
+                
+                # fetch the bounding boxes and take measurement
+                if k & 0xFF == ord(self.take_measurement):
+                    
+                    img_result = self.img
+
+                    # set contours counters: _in => sufficiently large; _out => too small
+                    count_in = 0
+                    count_out = 0           
+                    
+                    # loop through the contours 
+                    for c in cnts[0]:
+                        
+                        # flag for reference object
+                        ref_object_measured = False
+
+                        # if the contour is not sufficiently large, ignore it
+                        if cv2.contourArea(c) < area_min_coeff*10**area_min_power: #area_min a*10^x
+                            count_out += 1
+                            continue
+                        count_in += 1
+
+                        tl, tr, br, bl, img_result = self.unpack_bounding_box(c, img_result)
+                    
+                        img_result = self.get_midpoints_from_box(img_result, tl, tr, bl, br, ref_object_measured)
+
+                    self.update_averages()
+                    
+                    if self.help:
+                        self.help_contour_count(count_in, count_out)
+                
+                img_result_scaled = self.stack_images(0.2, ([ img_result ] ))
+                setattr(self, 'img_result', img_result_scaled)
+                cv2.imshow("The measurement", self.img_result)
+                img_stack = self.stack_images(0.1, ([ [hsv_filtered_image, edged], [dilated, eroded] ] ))
+                cv2.imshow("Image stack: TL = filtered by colour; TR = edged (Canny); BL = dilated; BR = eroded ", img_stack)
+                    
+                # except Exception:
+                #     print('Error!')
+                #     break
+            
+            cv2.destroyAllWindows()
+
+            self.update_measurement_parameters(area_min_coeff, area_min_power, canny_min, canny_max)
+
+            return img_result
 
     def stack_images(self, scale, imgArray):
         '''stacks and scales a collection of image arrays. 
@@ -483,9 +569,10 @@ class Caliper():
         return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
 
     def tuple_average(self, results):
-        ''' Returns averages based on the largest/smallest value within each tuple, 
-        given a list of tuples.'''   
-
+        '''
+        Returns averages based on the largest/smallest value within each tuple, 
+        given a list of tuples.
+        '''   
         n = len(results) - 1 # remove reference object from total urchins
         sum_small = 0
         sum_big = 0
@@ -517,10 +604,12 @@ class Caliper():
         average_overall = sum / n
         return average_overall
 
-    def output(self, save_image = True):
-
-        '''Writes the measurements, averages, etc to a .csv file'''
-        
+    def output(self, save_image=False):
+        '''
+        Writes:
+        The measurement, parameters, and datetime to csv;
+        and saves image result, if save_image=True. 
+        '''
         # set date & time
         today_unformatted = date.today()
         today = today_unformatted.strftime("%d-%m-%Y")
