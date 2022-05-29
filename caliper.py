@@ -1,4 +1,5 @@
 # imports
+from importlib.resources import path
 from pyparsing import opAssoc
 from scipy.spatial import distance as dist
 from imutils import perspective
@@ -22,18 +23,20 @@ class Caliper():
     auto=True for no user interaction.
     '''
     
-    def __init__(self, image_name, image_format, reference_object_length=None, pixels_per_cm=None, help=False, auto=True):
+    def __init__(self, help=True, auto=False):
 
         # calibration
-        self.reference_object_length = reference_object_length
-        self.pixels_per_cm = pixels_per_cm
+        self.reference_object_length = None
+        self.pixels_per_cm = None
+        # if not (bool(reference_object_length) and bool(pixels_per_cm)):
+        #     print('Reference object length or pixels-to-cm ratio required.')
 
-        # load image
-        self.image_name = image_name
-        self.image_format = '.' + image_format
+        # image
+        self.image_name = None
+        self.image_format = None
         self.image_folder = None
-        self.path_to_image = join(self.image_folder, self.image_name + self.image_format)
-        self.img = cv2.imread(self.path_to_image)
+        self.path_to_image = None
+        self.img = None
 
         # modes
         self.help = help
@@ -86,6 +89,21 @@ class Caliper():
         self.number_of_urchins = None
 
     # methods
+
+    def load_image(self, image_name, image_format, path_to_image_folder, reference_object_length=None, pixels_per_cm=None):
+        self.image_name = image_name
+        self.image_format = image_format
+        self.image_folder = path_to_image_folder
+        path_to_image = join(path_to_image_folder, image_name + '.' + image_format)
+        self.path_to_image = path_to_image
+        self.reference_object_length = reference_object_length
+        self.pixels_per_cm = pixels_per_cm
+        print(path_to_image)
+        image = cv2.imread(path_to_image)
+        self.img = image
+        if not (bool(reference_object_length) or bool(pixels_per_cm)):
+            print('Warning: reference object length or pixels-to-cm ratio will be required for measurement downstream.')
+        return image
 
     def update_hsv_parameters(self, hsv_lower, hsv_upper):
 
@@ -633,7 +651,7 @@ class Caliper():
         # save image
         if save_image:
             cwd = getcwd()
-            output_image_name = self.image_name + ' ' + today + ' ' + now + self.image_format
+            output_image_name = self.image_name + ' ' + today + ' ' + now + '.' + self.image_format
             path_to_output_image = join(cwd, self.image_folder, output_image_name)
             print(path_to_output_image)
             cv2.imwrite(path_to_output_image, self.img_result) 

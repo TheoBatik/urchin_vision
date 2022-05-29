@@ -18,10 +18,11 @@ help = True
 save_image = True
 
 # create caliper 
-caliper = Caliper(args["image"], args["format"], args["ref"], help=help, auto=auto)
+caliper = Caliper(help=help, auto=auto)
 
-# define input image
-image = caliper.img
+# load input image
+image_folder = 'images'
+image = caliper.load_image(args["image"], args["format"], image_folder, reference_object_length=args["ref"])
 
 # apply hsv filter
 masked = caliper.hsv_filter(image)
