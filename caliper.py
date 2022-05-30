@@ -98,7 +98,6 @@ class Caliper():
         self.path_to_image = path_to_image
         self.reference_object_length = reference_object_length
         self.pixels_per_cm = pixels_per_cm
-        print(path_to_image)
         image = cv2.imread(path_to_image)
         self.img = image
         if not (bool(reference_object_length) or bool(pixels_per_cm)):
@@ -146,7 +145,8 @@ class Caliper():
             return masked
 
         else:
-
+            if self.help:
+                print('\nManual measurement triggered...')
             # setup HSV filter trackbars
             cv2.namedWindow(self.trackbar_name_1)
             cv2.resizeWindow(self.trackbar_name_1,640,240)
@@ -218,7 +218,7 @@ class Caliper():
             total_dilations += dilation_iterations
             self.action_sequence.append(self.dilate)
             if self.help:
-                print('Total number of dilations =', total_dilations)
+                print('   Dilations =', total_dilations)
         return dilated, total_dilations
 
     def erode_image(self, dilated_image, total_erosions):
@@ -230,7 +230,7 @@ class Caliper():
             total_erosions += erosion_iterations
             self.action_sequence.append(self.erode)
             if self.help:
-                print('Total number of erosions =', total_erosions)
+                print('   Erosions =', total_erosions)
         return eroded, total_erosions
 
     def get_measurement_trackbar_values(self):
@@ -247,7 +247,7 @@ class Caliper():
         cnts = contours.sort_contours(cnts, method='left-to-right')
         if self.help:
             length_cnts = len(cnts[0])
-            print(f'   Contours fetched: {length_cnts} ')
+            print(f'   \nContours fetched: {length_cnts} ')
         return cnts
 
     def unpack_bounding_box(self, contour, img_result):
@@ -367,6 +367,12 @@ class Caliper():
         print('   Bounding boxes drawn.') 
         print('   Midpoints computed.')
         print('Measurment complete.')
+
+    def check_ref_args(self):
+        args_present = False
+        if (self.reference_object_length or self.pixels_per_cm):
+            args_present = True
+        return args_present
     
     def measure(self, hsv_filtered_image):
         '''
@@ -443,7 +449,7 @@ class Caliper():
                 if self.help:
                     print('Action sequence missing. Auto-measurement aborted.') 
         else:
-
+            
             # Instructions (part 2)
             if self.help:
                 print('\tUse the trackbars to adjust the Canny values and minimum area')
@@ -451,7 +457,7 @@ class Caliper():
                 print('\t\'{}\' to dilate'.format(self.dilate))
                 print('\t\'{}\' to erode'.format(self.erode))
                 print('\t\'{}\' to fetch the contours'.format(self.get_contours))
-                print('\t\'{}\' to display measurements'.format(self.take_measurement))
+                print('\t\'{}\' to display measurements\n'.format(self.take_measurement))
 
             # blur
             gray = self.blur_image(gray)
@@ -504,6 +510,10 @@ class Caliper():
                 # fetch the bounding boxes and take measurement
                 if k & 0xFF == ord(self.take_measurement):
                     
+                    if not self.check_ref_args():
+                        print('Reference_object_length or pixels_per_cm is required.')
+                        break
+
                     img_result = self.img
 
                     # set contours counters: _in => sufficiently large; _out => too small
@@ -653,7 +663,6 @@ class Caliper():
             cwd = getcwd()
             output_image_name = self.image_name + ' ' + today + ' ' + now + '.' + self.image_format
             path_to_output_image = join(cwd, self.image_folder, output_image_name)
-            print(path_to_output_image)
             cv2.imwrite(path_to_output_image, self.img_result) 
 
 
