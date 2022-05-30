@@ -13,9 +13,9 @@ args = vars(ap.parse_args())
 # args = {"image":'example2', "format":'jpg', "ref":5}
 
 # set modes
-auto = True
-help = False
-save_image = True
+auto = False
+help = True
+save_image = False
 
 # create caliper 
 caliper = Caliper(help=help, auto=auto)
