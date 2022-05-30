@@ -2,7 +2,7 @@
 
 ## Setup
 
-Install the packages specified in requirements.txt. Any method is fine, but we recommend using pipenv. In terminal, cd into the repo run following commands:
+Install the packages specified in requirements.txt. Any method is fine, but we recommend using pipenv. In terminal, cd into the repo and run following commands:
 
     install pip
     pip install pipenv
