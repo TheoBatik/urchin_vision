@@ -1,16 +1,39 @@
 from caliper import Caliper
 import argparse
 
+# arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", required=True, help="name of the input image")
-ap.add_argument("-w", "--width", type=float, required=True, help="width of the left-most object in the image (in cm)")
+ap.add_argument("-f", "--format", required=True, help="format of the input image")
+ap.add_argument("-r", "--ref", type=float, required=False, help="width of the left-most object in the image (in cm)")
+ap.add_argument("-p", "--pixel", type=float, required=False, help="ratio of pixels to cm")
 args = vars(ap.parse_args())
 
-args = {"image":'example2', "width":5}
+# or hard-code the args
+# args = {"image":'example2', "format":'jpg', "ref":5}
 
-c = Caliper(args["image"], args["width"], help = True)
-print(c.image_folder, c.image_name)
-image = c.img
-masked = c.hsv_filter(image)
-image_result = c.measure(masked)
-c.output()
+# set modes
+auto = False
+help = True
+save_image = False
+
+# create caliper 
+caliper = Caliper(help=help, auto=auto)
+
+# load input image
+image_folder = 'images'
+image_in = caliper.load_image(args["image"], args["format"], image_folder, 
+    reference_object_length=args["ref"], pixels_per_cm=args["pixel"])
+
+# apply hsv filter
+masked = caliper.hsv_filter(image_in)
+
+# set action sequence (if on auto mode)
+if auto:
+    caliper.action_sequence = ['b', 'd', 'e', 'd', 'd']
+
+# take measurement and return image result
+caliper.measure(masked)
+
+# write measurement to csv 
+caliper.output(save_image=save_image)
