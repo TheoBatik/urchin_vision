@@ -64,6 +64,8 @@ class Caliper():
         self.min_area_power_def = 4 # minimum area: default power
         self.min_area_coeff_def = 5 # minimum area: default coefficient
         self.min_area_upper_bound = 10 # greatest minimum area selectable
+        self.canny_min = 50
+        self.canny_max = 100
 
         # action keys 
         self.actions = {'quit':'q', 'next':'n', 'blur':'b', 'dilate':'d', 'erode':'e', 'get_contours':'c', 'measure':'m'}
@@ -247,7 +249,7 @@ class Caliper():
         cnts = contours.sort_contours(cnts, method='left-to-right')
         if self.help:
             length_cnts = len(cnts[0])
-            print(f'   \nContours fetched: {length_cnts} ')
+            print(f'   Contours fetched: {length_cnts} ')
         return cnts
 
     def unpack_bounding_box(self, contour, img_result):
@@ -406,7 +408,7 @@ class Caliper():
             action_sequence = self.action_sequence
             if bool(action_sequence):
                 if self.help:
-                    print('Auto-measurement triggered...\n   Action sequence:', action_sequence)
+                    print('\nAuto-measurement triggered...\n   Action sequence:', action_sequence)
                 for action in action_sequence:
                     gray = self.choose_action(gray, action)
                 
@@ -445,6 +447,9 @@ class Caliper():
                 if self.help:
                     self.help_contour_count(count_in, count_out)
 
+                # update measurement params
+                self.update_measurement_parameters(self.min_area_coeff_def, self.min_area_power_def, self.canny_min, self.canny_max)
+
             else:
                 if self.help:
                     print('Action sequence missing. Auto-measurement aborted.') 
@@ -459,16 +464,12 @@ class Caliper():
                 print('\t\'{}\' to fetch the contours'.format(self.get_contours))
                 print('\t\'{}\' to display measurements\n'.format(self.take_measurement))
 
-            # blur
-            gray = self.blur_image(gray)
-
-            # extract edges
-            edged = cv2.Canny(gray, 50, 100)
+            # define image result
             img_result = self.img
 
             # dilate and erode
-            dilated, total_dilations = self.dilate_image(edged, total_dilations)
-            eroded, total_erosions = self.erode_image(dilated, total_erosions)
+            dilated = gray.copy()
+            eroded = gray.copy()
 
             self.create_measurement_trackbars()
 

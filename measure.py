@@ -13,9 +13,9 @@ args = vars(ap.parse_args())
 # args = {"image":'example2', "format":'jpg', "ref":5}
 
 # set modes
-auto = False
+auto = True
 help = True
-save_image = False
+save_image = True
 
 # create caliper 
 caliper = Caliper(help=help, auto=auto)
@@ -30,7 +30,7 @@ masked = caliper.hsv_filter(image_in)
 
 # set action sequence (if on auto mode)
 if auto:
-    caliper.action_sequence = ['b', 'd', 'e', 'd', 'd']
+    caliper.action_sequence = ['d', 'e', 'd', 'd']
 
 # take measurement and return image result
 caliper.measure(masked)

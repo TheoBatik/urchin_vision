@@ -12,7 +12,7 @@ Install the packages specified in requirements.txt. Any method is fine, but we r
 
 With a reference object of known width in the top-left of the image, run the following command:
 
-    pipenv run python measure.py -i image_name -f image_format -w width
+    pipenv run python measure.py -i image_name -f image_format -r reference_object_width
 
 Alternatively, using a ratio of pixels per cm, you can run:
 
@@ -20,12 +20,12 @@ Alternatively, using a ratio of pixels per cm, you can run:
 
 --i specifies the image name, 
 --f is the image format/extension (e.g. 'jpg'),
---w sets the reference object width,
+--r sets the reference object width,
 --p sets the pixels-to-cm ratio
 
 For example, you could run
     
-    pipenv run python measure.py -i example2 -f jpg -w 5
+    pipenv run python measure.py -i example2 -f jpg -r 5
 
 ## General notes
 
