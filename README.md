@@ -27,20 +27,18 @@ For example, you could run
     
     pipenv run python measure.py -i example2 -f jpg -r 5
 
-## General notes
+# Protocol: Determining mass and diameter of live urchins 
 
-## Protocol: Determining mass and diameter of live urchins 
-
-# Set up
+## Set up
 1.	All urchins from each experimental unit can be weighed together, thus an appropriate weight scale (ideally with at least 2 decimal places but depending on the quantity of urchins per treatment) and container must be acquired. The container must be stable on the scale and easy to tare. This could be the photo box described below.
 2.	Any container could be used for the photo box provided it serves the following functions: 
-a.	Appropriate size to hold the required number of urchins, with adequate spacing between them (±1.5cm).
-b.	Somewhat standardises lighting conditions.
-c.	Standardises the distance from the camera to the urchins.
+    a.	Appropriate size to hold the required number of urchins, with adequate spacing between them (±1.5cm).
+    b.	Somewhat standardises lighting conditions.
+    c.	Standardises the distance from the camera to the urchins.
 A plain white background is strongly recommended. If a photo box is constructed as used in this study and described below, it will increase the likelihood that the default settings of the computer vision program will be appropriate and in general fewer alternations will be required.
 3.	To replicate our photo box, attain three ‘fish’ styrofoam boxes (70cm x 35cm x18cm) and stack them on top of each other, retaining only the lid of the top box. Removed the bottom “floors” of the top two boxes, making a continuous box from the top lid of the upper box to the floor of the bottom box. To allow for the image to be taken, a small hole must be cut in the centre of the lid of the top box. A reference object, with a known diameter and ideally completely black, must be placed on the most left-hand side of the image, and no other objects placed further left of this object.
 
-# Acquiring images and mass
+## Acquiring images and mass
 1.	Slowly remove the urchin basket from the water while gently shaking the basket to ensure urchins detach from the sidewall and fall into the water and remain on the bottom of the basket. Do not allow urchins to fall to the bottom of the basket once it is completely out of the water as this can damage the urchins
 2.	Remove the basket from the water body and allow it to drip dry for at least 90 seconds before weighing.
 3.	Remove urchins from the basket and place them into a container that has been tared and record mass.
@@ -52,7 +50,7 @@ A plain white background is strongly recommended. If a photo box is constructed 
 9.	The filename of the image must be changed to the name of the group of urchins, this name will be used to label the urchin measurement in the output CSV file.
 10.	Return urchins to the body of water as soon as possible
 
-# Processing images
+## Processing images
 1.	We found that images with a size of approximately 1.2Mb were precise while not requiring too much processing time.
 2.	Input diameter of reference object for "widths" in the "args" command (line 34)
 3.	Input image location
