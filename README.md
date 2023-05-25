@@ -14,6 +14,10 @@ With a reference object of known width in the top-left of the image, run the fol
 
     pipenv run python measure.py -i image_name -f image_format -r reference_object_width
 
+To check if it is working, run the following command and see if the output is the same as example_result.jpeg
+
+    pipenv run python measure.py -i 'example' -f 'jpeg' -r 2.8
+
 Alternatively, using a ratio of pixels per cm, you can run:
 
     pipenv run python measure.py -i image_name -f image_format -p pixels_per_cm
@@ -23,10 +27,6 @@ Alternatively, using a ratio of pixels per cm, you can run:
 --r sets the reference object width,
 --p sets the pixels-to-cm ratio
 
-For example, you could run
-    
-    pipenv run python measure.py -i example2 -f jpg -r 5
-
 # Protocol: Determining mass and diameter of live urchins 
 
 ## Set up
@@ -34,11 +34,11 @@ For example, you could run
 2.	Any container could be used for the photo box provided it serves the following functions: 
     a.	Appropriate size to hold the required number of urchins, with adequate spacing between them (±1.5cm).
     b.	Somewhat standardises lighting conditions.
-    c.	Standardises the distance from the camera to the urchins.
-A plain white background is strongly recommended. If a photo box is constructed as used in this study and described below, it will increase the likelihood that the default settings of the computer vision program will be appropriate and in general fewer alternations will be required.
-3.	To replicate our photo box, attain three ‘fish’ styrofoam boxes (70cm x 35cm x18cm) and stack them on top of each other, retaining only the lid of the top box. Removed the bottom “floors” of the top two boxes, making a continuous box from the top lid of the upper box to the floor of the bottom box. To allow for the image to be taken, a small hole must be cut in the centre of the lid of the top box. A reference object, with a known diameter and ideally completely black, must be placed on the most left-hand side of the image, and no other objects placed further left of this object.
+    c.	Standardises the distancer, retaining only the lid of the top box. Removed the bottom “floors” of the top two boxes, making a continuous box from the top lid of the upper box to the floor of the bottom box. To allow for the image to be taken, a small hole must be cut in the centre of the lid of the top box. A reference object, with a known diameter and ideally completely black, must be placed on the most left-hand side of the image, and no other objects placed further left of this object.
 
-## Acquiring images and mass
+## Acquiring images and masse from the camera to the urchins.
+A plain white background is strongly recommended. If a photo box is constructed as used in this study and described below, it will increase the likelihood that the default settings of the computer vision program will be appropriate and in general fewer alternations will be required.
+3.	To replicate our photo box, attain three ‘fish’ styrofoam boxes (70cm x 35cm x18cm) and stack them on top of each oth
 1.	Slowly remove the urchin basket from the water while gently shaking the basket to ensure urchins detach from the sidewall and fall into the water and remain on the bottom of the basket. Do not allow urchins to fall to the bottom of the basket once it is completely out of the water as this can damage the urchins
 2.	Remove the basket from the water body and allow it to drip dry for at least 90 seconds before weighing.
 3.	Remove urchins from the basket and place them into a container that has been tared and record mass.
