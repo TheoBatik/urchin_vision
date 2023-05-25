@@ -53,19 +53,20 @@ class Caliper():
         # HSV trackbar default values
         self.trackbar_name_1 = "HSV Filter Trackbars"
         self.hue_min_def = 0
-        self.hue_max_def = 13
-        self.sat_min_def = 23
+        self.hue_max_def = 239
+        self.sat_min_def = 0
         self.sat_max_def = 239
         self.val_min_def = 0
-        self.val_max_def = 77
+        self.val_max_def = 65
 
-        # setup measurement trackbar
+         # setup measurement trackbar
         self.trackbar_name_2 = "Measurement Trackbars"
-        self.min_area_power_def = 4 # minimum area: default power
-        self.min_area_coeff_def = 5 # minimum area: default coefficient
+        self.min_area_power_def = 2 # minimum area: default power
+        self.min_area_coeff_def =8 # minimum area: default coefficient
         self.min_area_upper_bound = 10 # greatest minimum area selectable
-        self.canny_min = 50
-        self.canny_max = 100
+        self.canny_min = 0
+        self.canny_max = 32
+
 
         # action keys 
         self.actions = {'quit':'q', 'next':'n', 'blur':'b', 'dilate':'d', 'erode':'e', 'get_contours':'c', 'measure':'m'}
@@ -315,7 +316,7 @@ class Caliper():
             centreX = int( (trbrX + tlblX)/2 ) - 170
             centreY = int( (trbrY + tlblY)/2 )
             cv2.putText(img_result, "REF",
-                (centreX, centreY), cv2.FONT_HERSHEY_SIMPLEX, 6, (0, 0, 0), 10)
+                (centreX, centreY), cv2.FONT_HERSHEY_SIMPLEX, 1, (1, 0, 0), 2)
         
         # compute the diameter, in cm
         dimA = dA / self.pixels_per_cm
@@ -323,9 +324,9 @@ class Caliper():
         
         # draw the diameters onto the image
         cv2.putText(img_result, "{:.1f}cm".format(dimB),
-                (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+                (int(tltrX), int(tltrY)), cv2.FONT_HERSHEY_SIMPLEX, 1, (1, 0, 0), 2)
         cv2.putText(img_result, "{:.1f}cm".format(dimA),
-                (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10)
+                (int(trbrX), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 1, (1, 0, 0), 2)
 
         # update results
         self.results.append( (dimA, dimB) )
@@ -665,7 +666,6 @@ class Caliper():
             output_image_name = self.image_name + ' ' + today + ' ' + now + '.' + self.image_format
             path_to_output_image = join(cwd, self.image_folder, output_image_name)
             cv2.imwrite(path_to_output_image, self.img_result) 
-
 
 
 
