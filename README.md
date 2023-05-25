@@ -59,4 +59,4 @@ A plain white background is strongly recommended. If a photo box is constructed 
 2.	Input diameter of reference object for "widths" in the "args" command (line 34)
 3.	Input image location
 4.	Run the program, follow prompts and check if contours follow the test of the urchin	
-![image](https://user-images.githubusercontent.com/102225039/174484330-cda1e7cf-947c-4361-9eaf-21ec81857c97.png)
+
