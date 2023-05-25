@@ -1,7 +1,5 @@
 *.csv
 *.png
-*.jpg
-*.jpeg
 Pipfile
 Pipfile.lock
 __pycache__
