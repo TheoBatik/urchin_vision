@@ -1,6 +1,8 @@
 from caliper import Caliper
 import argparse
 
+args = {"--image":'example', "--format":'jpeg', "--ref":5}
+
 # arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", required=True, help="name of the input image")
@@ -10,7 +12,7 @@ ap.add_argument("-p", "--pixel", type=float, required=False, help="ratio of pixe
 args = vars(ap.parse_args())
 
 # or hard-code the args
-# args = {"image":'example2', "format":'jpg', "ref":5}
+# args = {"image":'example', "format":'jpeg', "ref":5}
 
 # set modes
 auto = True
@@ -30,7 +32,7 @@ masked = caliper.hsv_filter(image_in)
 
 # set action sequence (if on auto mode)
 if auto:
-    caliper.action_sequence = ['d', 'e', 'd', 'd']
+    caliper.action_sequence = ['d', 'e', 'e','e', 'd']
 
 # take measurement and return image result
 caliper.measure(masked)
